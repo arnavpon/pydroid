@@ -10,20 +10,21 @@ class Pydroid {
 
   static Future<String?> get platformVersion async {
     final String? version = await _channel.invokeMethod('getPlatformVersion');
-    log("[Platform Version] Version: $version");
+    log("[flutter] Getting platform version: $version");
     return version;
   }
 
   // Practice Example
 
-  static Future<int?> onKeyDown(int key) async {
-    final int? numNotesOn = await _channel.invokeMethod('onKeyDown', [key]);
-    // can pass parameters to the invokeMethod as a list
-    return numNotesOn;
+  static Future<int?> runTest() async {
+    log("[flutter] runTest called...");
+    final int? result = await _channel.invokeMethod('test');
+    return result;
   }
 
   static Future<int?> onKeyUp(int key) async {
     final int? numNotesOn = await _channel.invokeMethod('onKeyUp', [key]);
+    // can pass parameters to the invokeMethod as a list
     return numNotesOn;
   }
 

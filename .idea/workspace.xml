@@ -6,11 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="c6fdb9ef-4c0e-48cc-90d4-3fd37075c1a9" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/android/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/android/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/android/settings.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/src/main/java/com/jacobsonlab/pydroid/PydroidPlugin.java" beforeDir="false" afterPath="$PROJECT_DIR$/android/src/main/java/com/jacobsonlab/pydroid/PydroidPlugin.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/example/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/example/lib/main.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/pydroid.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/pydroid.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test/pydroid_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/pydroid_test.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

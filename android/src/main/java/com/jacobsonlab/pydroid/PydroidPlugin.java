@@ -1,5 +1,7 @@
 package com.jacobsonlab.pydroid;
 
+import java.util.List;
+
 import android.app.Activity;
 
 import androidx.annotation.NonNull;
@@ -14,9 +16,6 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
-
-
-import java.util.ArrayList;  // ***
 
 
 /** PydroidPlugin */
@@ -65,6 +64,7 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
+    System.out.println("[onAttachedToEngine] setting up...");
     channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), channelName);
     channel.setMethodCallHandler(this);
     context = flutterPluginBinding.getApplicationContext();
@@ -76,28 +76,40 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
 
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+    System.out.println("[onMethodCall] passing method call...");
     if (call.method.equals("getPlatformVersion")) {
-      result.success("Android " + android.os.Build.VERSION.RELEASE);
-      pyHandler.test(); // ***
+      try {
+        result.success("Android " + android.os.Build.VERSION.RELEASE);
+      } catch (Exception ex) {
+        result.error("1", ex.getMessage(), ex.getStackTrace());
+      }
+      
 
-    } else if (call.method.equals("onKeyDown")) {
-      System.out.println("[droid] onKeyDown...");
+    } else if (call.method.equals("test")) {
+      System.out.println("[java] running Python test...");
       try {
-        ArrayList arguments = (ArrayList) call.arguments;
-        int numKeysDown = synth.keyDown((Integer) arguments.get(0));
-        result.success(numKeysDown);
+        if (pyHandler == null) {
+          System.out.println("[java] python handler is null, initializing...");
+          // pyHandler = new PythonHandler(getApplicationContext());
+        } else {
+          System.out.println("[java] python handler is NOT null");
+        }
+        List res = pyHandler.test();
+        result.success(res.size());
       } catch (Exception ex) {
         result.error("1", ex.getMessage(), ex.getStackTrace());
       }
+
     } else if (call.method.equals("onKeyUp")) {
-      System.out.println("[droid] onKeyUp...");
-      try {
-        ArrayList arguments = (ArrayList) call.arguments;
-        int numKeysDown = synth.keyUp((Integer) arguments.get(0));
-        result.success(numKeysDown);
-      } catch (Exception ex) {
-        result.error("1", ex.getMessage(), ex.getStackTrace());
-      }
+      // System.out.println("[droid] onKeyUp...");
+      // try {
+      //   ArrayList arguments = (ArrayList) call.arguments;
+      //   int numKeysDown = synth.keyUp((Integer) arguments.get(0));
+      //   result.success(numKeysDown);
+      // } catch (Exception ex) {
+      //   result.error("1", ex.getMessage(), ex.getStackTrace());
+      // }
+
     } else {
       result.notImplemented();
     }
