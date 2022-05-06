@@ -33,15 +33,14 @@ public class PythonHandler {
         }
     }
 
-    public List<PyObject> test() {
+    public String test() {
         System.out.println("PythonHandler - test() - top...");
         // Python.start(new AndroidPlatform(ctx));  // where is the "context"
-        // pyInstance = Python.getInstance();
-
-        PyObject os = pyInstance.getModule("os");  // call module
+        pyInstance = Python.getInstance();
+        PyObject sys = pyInstance.getModule("sys");  // call module
         System.out.println("PythonHandler - test() - mid...");
-        List<PyObject> res = os.callAttr("listDir").asList();
-        System.out.println(res.toString());
+        String res = sys.get("version").toString();
+        System.out.println(res);
         return res;
     }
   

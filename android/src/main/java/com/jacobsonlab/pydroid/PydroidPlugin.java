@@ -30,8 +30,6 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
   private android.content.Context context;
   private Activity activity;
 
-  private Synth synth;
-
   // Mark: - Activity Aware Implementation
 
   @Override
@@ -69,9 +67,7 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
     channel.setMethodCallHandler(this);
     context = flutterPluginBinding.getApplicationContext();
     pyHandler = new PythonHandler(context);  // init python handler
-
-    // plugin.synth = new Synth();
-    // plugin.synth.start();
+    // this function is NOT being called
   }
 
   @Override
@@ -81,23 +77,23 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
       try {
         result.success("Android " + android.os.Build.VERSION.RELEASE);
       } catch (Exception ex) {
-        result.error("1", ex.getMessage(), ex.getStackTrace());
+        result.error("1", ex.getMessage(), null);
       }
-      
 
     } else if (call.method.equals("test")) {
       System.out.println("[java] running Python test...");
       try {
         if (pyHandler == null) {
-          System.out.println("[java] python handler is null, initializing...");
-          // pyHandler = new PythonHandler(getApplicationContext());
+          System.out.println("[java] python handler is null, initialize???");
+          // no access to context from here
+          // pyHandler = new PythonHandler(context);
         } else {
           System.out.println("[java] python handler is NOT null");
         }
-        List res = pyHandler.test();
-        result.success(res.size());
+        int res = pyHandler.test().length();
+        result.success(res);
       } catch (Exception ex) {
-        result.error("1", ex.getMessage(), ex.getStackTrace());
+        result.error("1", ex.getMessage(), null);
       }
 
     } else if (call.method.equals("onKeyUp")) {

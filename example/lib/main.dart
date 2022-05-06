@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -41,8 +43,7 @@ class _MyAppState extends State<MyApp> {
 
   void _runTest() {
     print("[Flutter] _runTest");
-    Pydroid.runTest()
-        .then((value) => print("Returned array with $value items"));
+    Pydroid.runTest().then((value) => log("Returned string of length $value"));
   }
 
   void _onKeyUp(int key) {
