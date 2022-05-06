@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:pydroid/pydroid.dart';
 
 void main() {
@@ -8,9 +9,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    // channel.setMockMethodCallHandler((MethodCall methodCall) async {
-    //   return '42';
-    // });
+    handler(MethodCall methodCall) async {
+      if (methodCall.method == "getPlatformVersion") {
+        return 0;
+      }
+      return null;
+    }
+
+    TestWidgetsFlutterBinding.ensureInitialized();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, handler);
   });
 
   tearDown(() {
@@ -18,10 +26,12 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
+    // mock this...
     expect(await Pydroid.platformVersion, '42');
   });
 
   test('getBatteryLevel', () async {
-    expect(await Pydroid.batteryLevel, '-1');
+    // mock this to check the python version, which should be 3.8.11
+    expect(await Pydroid.runTest(), '-1');
   });
 }

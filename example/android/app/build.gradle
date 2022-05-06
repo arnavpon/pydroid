@@ -47,6 +47,7 @@ android {
             buildPython "/Users/arnavpon/opt/anaconda3/envs/chaquopy/bin/python3.8"
             pip {
                 install 'numpy'
+                install 'scikit-learn'
             }
         }
     }

@@ -3,6 +3,7 @@ package com.jacobsonlab.pydroid;
 import java.util.List;
 
 import android.app.Activity;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 
@@ -21,9 +22,8 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 /** PydroidPlugin */
 public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
   /// The MethodChannel that handles communication between Flutter and native Android
-  ///
-  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-  /// when the Flutter Engine is detached from the Activity
+  /// This local reference serves to register the plugin with the Flutter Engine and unregister it when the Flutter Engine is detached from the Activity
+  
   private MethodChannel channel;
   private PythonHandler pyHandler;
   private static final String channelName = "pydroid";
@@ -34,40 +34,38 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
 
   @Override
   public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+    System.out.println("[java] onAttachedToActivity");
     activity = binding.getActivity();
   }
 
   @Override
   public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+    System.out.println("[java] onReattachedToActivityForConfigChanges");
     activity = binding.getActivity();
   }
 
   @Override
   public void onDetachedFromActivity() {
+    System.out.println("[java] onDetachedFromActivity");
     activity = null;
   }
 
   @Override
   public void onDetachedFromActivityForConfigChanges() {
+    System.out.println("[java] onDetachedFromActivityForConfigChanges");
     activity = null;
   }
 
   // MARK: - Plugin Methods
 
-  // @Override
-  // public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
-  //   channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "pydroid");
-  //   channel.setMethodCallHandler(this);
-  // }
-
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
+    // this function IS being called, we just don't see the output in the console!
     System.out.println("[onAttachedToEngine] setting up...");
     channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), channelName);
     channel.setMethodCallHandler(this);
     context = flutterPluginBinding.getApplicationContext();
     pyHandler = new PythonHandler(context);  // init python handler
-    // this function is NOT being called
   }
 
   @Override
@@ -96,15 +94,38 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
         result.error("1", ex.getMessage(), null);
       }
 
-    } else if (call.method.equals("onKeyUp")) {
-      // System.out.println("[droid] onKeyUp...");
-      // try {
-      //   ArrayList arguments = (ArrayList) call.arguments;
-      //   int numKeysDown = synth.keyUp((Integer) arguments.get(0));
-      //   result.success(numKeysDown);
-      // } catch (Exception ex) {
-      //   result.error("1", ex.getMessage(), ex.getStackTrace());
-      // }
+    } else if (call.method.equals("execute")) {
+      System.out.println("[droid] execute...");
+      try {
+        if (pyHandler == null) {
+          System.out.println("[java] python handler is null, initialize???");
+          // no access to context from here
+          // pyHandler = new PythonHandler(context);
+        } else {
+          System.out.println("[java] python handler is NOT null");
+        }
+        result.success(pyHandler.executeScriptSync());
+      } catch (Exception ex) {
+        result.error("1", ex.getMessage(), null);
+      }
+
+    }  else if (call.method.equals("executeInBackground")) {
+        System.out.println("[droid] executeInBackground...");
+        new Thread(new Runnable() {
+          public void run() {
+            try {
+              // ERROR - don't call result methods outside of main thread!
+              // causes app to crash
+              // how do we call back to main?
+//              Looper.getMainLooper();
+              String output = pyHandler.executeScriptAsync();
+              System.out.println(String.format("[droid] Return value: %s", output));
+              result.success(output);
+            } catch (Exception ex) {
+              result.error("1", ex.getMessage(), null);
+            }
+          }
+        }).start();
 
     } else {
       result.notImplemented();

@@ -46,22 +46,26 @@ class _MyAppState extends State<MyApp> {
     Pydroid.runTest().then((value) => log("Returned string of length $value"));
   }
 
-  void _onKeyUp(int key) {
-    print("key up:$key");
-    Pydroid.onKeyUp(key).then((value) => print(value));
+  void _executeScript() {
+    print("[Flutter] main.dart - Executing script...");
+    Pydroid.executeInBackground()
+        .then((value) => log("Returned value '$value'"));
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        backgroundColor: Color.fromARGB(255, 250, 30, 0),
+        backgroundColor: Colors.white,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               Text('Running on: $_platformVersion\n'),
-              TextButton(onPressed: _runTest, child: Text("Run Test")),
+              TextButton(onPressed: _runTest, child: const Text("Run Test")),
+              TextButton(
+                  onPressed: _executeScript,
+                  child: const Text("Execute Script")),
             ],
           ),
         ),

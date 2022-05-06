@@ -17,16 +17,28 @@ class Pydroid {
   // Practice Example
 
   static Future<int?> runTest() async {
-    log("[flutter] runTest called...");
+    log("[flutter] pydroid.dart - runTest called...");
     final int? result = await _channel.invokeMethod('test');
     return result;
   }
 
-  static Future<int?> onKeyUp(int key) async {
-    final int? numNotesOn = await _channel.invokeMethod('onKeyUp', [key]);
-    // can pass parameters to the invokeMethod as a list
-    return numNotesOn;
+  static Future<String?> execute() async {
+    log("[flutter] pydroid.dart - called execute...");
+    final String? result = await _channel.invokeMethod('execute');
+    return result;
   }
+
+  static Future<String?> executeInBackground() async {
+    log("[flutter] pydroid.dart - called executeInBackground...");
+    final String? result = await _channel.invokeMethod('executeInBackground');
+    return result;
+  }
+
+  // static Future<int?> onKeyUp(int key) async {
+  //   final int? numNotesOn = await _channel.invokeMethod('onKeyUp', [key]);
+  //   // can pass parameters to the invokeMethod as a list
+  //   return numNotesOn;
+  // }
 
   /// A class that handles native python computations on native background threads
   /// returns dynamic data w/ type metadata?
