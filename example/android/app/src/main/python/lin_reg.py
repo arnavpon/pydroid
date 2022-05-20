@@ -18,13 +18,14 @@ def model(size):
   rsquare = model.score(x, y)
   # print("R^2: {0} | Intercept: {1} | Coefficient: {2}".format(rsquare, model.intercept_, model.coef_))
   stop = time.perf_counter()  # end timer
-  runtime = stop - start
-  # print(f"Time Elapsed: {runtime:0.4f} seconds")
+  runtime = (stop - start) * 1000 
+  # print(f"Time Elapsed: {runtime:0.4f} milliseconds")
   return runtime
   
 
 def average_performance(n, m_size):
   # runs the linear regression n times on a model of size m_size & gets avg time 
+  print(f"[python] Running {n} model iterations with {m_size} values each")
   runtimes = []
   for i in range(n):
     runtimes.append(model(m_size))

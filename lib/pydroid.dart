@@ -28,9 +28,14 @@ class Pydroid {
     return result;
   }
 
-  static Future<String?> executeInBackground() async {
+  static Future<String?> executeInBackground(
+      int iterations, int modelSize) async {
     log("[flutter] pydroid.dart - called executeInBackground...");
-    final String? result = await _channel.invokeMethod('executeInBackground');
+    final String? result =
+        await _channel.invokeMethod('executeInBackground', <String, int>{
+      "iterations": iterations,
+      "modelSize": modelSize,
+    });
     return result;
   }
 

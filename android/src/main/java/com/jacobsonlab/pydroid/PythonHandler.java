@@ -7,6 +7,8 @@ import com.chaquo.python.android.AndroidPlatform;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,17 +18,21 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import java.util.concurrent.Executor;
+
 // TODO 
 // Consuming python scripts
 
 public class PythonHandler {
 
+    private final Executor executor;  // background thread
     private Python pyInstance;
     private Context ctx;  // app context gives access to filesystem
 
-    public PythonHandler(Context context) {
+    public PythonHandler(Context context, Executor executor) {
         System.out.println("PythonHandler init...");
-        ctx = context;
+        this.ctx = context;
+        this.executor = executor;
         if (!Python.isStarted()) {  // initialize Python instance
             Python.start(new AndroidPlatform(context));  // where is the "context"
             pyInstance = Python.getInstance();
@@ -80,7 +86,7 @@ public class PythonHandler {
 
     public String executeScriptSync() {
         /// Utilizes script.py to run arbitrary code on a separate thread using "exec"
-        
+
         pyInstance = Python.getInstance();
         PyObject sys = pyInstance.getModule("sys");
         PyObject io = pyInstance.getModule("io");
@@ -109,33 +115,40 @@ public class PythonHandler {
         return interpreterOutput;
     }
 
-    public String executeScriptAsync() {
+    public void executeScriptAsync(int iterations, int modelSize, final PythonCallback callback) {
+        /// Runs python script on background Android thread
+
+        System.out.println("[executeAsync] thread: " + Thread.currentThread().getName());
         /// Background thread
-
-        pyInstance = Python.getInstance();
-        PyObject sys = pyInstance.getModule("sys");
-        PyObject io = pyInstance.getModule("io");
-        PyObject threaderScript = pyInstance.getModule("custom_threader");
-        PyObject helpers = pyInstance.getModule("helpers");
-        String interpreterOutput = "";
-        
-        try {
-            PyObject textOutputStream = io.callAttr("StringIO");
-            sys.put("stdout", textOutputStream);
-            PyObject lr = pyInstance.getModule("lin_reg");
-            Float avg = lr.callAttr("average_performance", 100, 1000000).toFloat();
-            System.out.println(String.format("\n[java] executeScript - Average Value: [%f]", avg));
-            interpreterOutput = textOutputStream.callAttr("getvalue").toString();
-
-        } catch (PyException e) {
-            // error in python code
-            interpreterOutput = e.getMessage().toString();
-        } catch (Throwable throwable) {
-            // java error
-            throwable.printStackTrace();
-        }
-        System.out.println(interpreterOutput);
-        return interpreterOutput;
+        executor.execute(new Runnable() {
+            @Override
+            public void run() { // single abstract method interface
+                // make synchronous python call in this background thread
+                System.out.println("[executeAsync - run] thread: " + Thread.currentThread().getName());
+                pyInstance = Python.getInstance();
+                PyObject sys = pyInstance.getModule("sys");
+                PyObject io = pyInstance.getModule("io");
+                String interpreterOutput = "";  // object returned in callback
+                try {
+                    PyObject textOutputStream = io.callAttr("StringIO");
+                    sys.put("stdout", textOutputStream);
+                    PyObject lr = pyInstance.getModule("lin_reg");
+                    Float avg = lr.callAttr("average_performance", iterations, modelSize).toFloat();
+                    System.out.println(String.format("\n[java] executeScript - Average Value: [%f]", avg));
+                    interpreterOutput = String.format("%f", avg);
+                    // interpreterOutput = textOutputStream.callAttr("getvalue").toString();
+                    System.out.println("[java] Python Script output: " + interpreterOutput);
+                } catch (PyException e) {
+                    // error in python code - return error msg through callback
+                    interpreterOutput = e.getMessage();
+                } catch (Throwable throwable) {
+                    // error in java code - return error msg through callback
+                    throwable.printStackTrace();
+                    interpreterOutput = "[java exception] " + throwable.getMessage();
+                }
+                callback.onComplete(interpreterOutput);
+            }
+        });
     }
   
 }

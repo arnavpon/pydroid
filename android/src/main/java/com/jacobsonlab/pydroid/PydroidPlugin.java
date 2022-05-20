@@ -1,11 +1,15 @@
 package com.jacobsonlab.pydroid;
 
-import java.util.List;
-
-import android.app.Activity;
+import androidx.annotation.NonNull;
+import android.os.Handler;
+import androidx.core.os.HandlerCompat;
 import android.os.Looper;
 
-import androidx.annotation.NonNull;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import android.app.Activity;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
@@ -29,6 +33,9 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
   private static final String channelName = "pydroid";
   private android.content.Context context;
   private Activity activity;
+
+  private ExecutorService executorService;  // thread manager
+  private Handler mainThreadHandler;  // save instance of main thread for quick ref
 
   // Mark: - Activity Aware Implementation
 
@@ -62,10 +69,14 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
   public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
     // this function IS being called, we just don't see the output in the console!
     System.out.println("[onAttachedToEngine] setting up...");
-    channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), channelName);
-    channel.setMethodCallHandler(this);
-    context = flutterPluginBinding.getApplicationContext();
-    pyHandler = new PythonHandler(context);  // init python handler
+    this.channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), channelName);
+    this.channel.setMethodCallHandler(this);
+    this.context = flutterPluginBinding.getApplicationContext();
+
+    // set up thread pool for background tasks, initialize the pool ONCE only! Is this function called only a single time??? Verify
+    this.executorService = Executors.newSingleThreadExecutor();  // only need 1 thread
+    this.pyHandler = new PythonHandler(context, executorService);  // init python handler w/ executor
+    this.mainThreadHandler = HandlerCompat.createAsync(Looper.getMainLooper());
   }
 
   @Override
@@ -110,22 +121,27 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
       }
 
     }  else if (call.method.equals("executeInBackground")) {
-        System.out.println("[droid] executeInBackground...");
-        new Thread(new Runnable() {
-          public void run() {
+      int iterations = call.argument("iterations");
+      int modelSize = call.argument("modelSize");
+      System.out.println("[droid] executeInBackground...");
+      System.out.println("Current thread: " + Thread.currentThread().getName());
             try {
-              // ERROR - don't call result methods outside of main thread!
-              // causes app to crash
-              // how do we call back to main?
-//              Looper.getMainLooper();
-              String output = pyHandler.executeScriptAsync();
-              System.out.println(String.format("[droid] Return value: %s", output));
-              result.success(output);
+              pyHandler.executeScriptAsync(iterations, modelSize, new PythonCallback() {
+                @Override
+                public void onComplete(String pyOutput) {
+                  System.out.println(String.format("[droid] Return value: %s", pyOutput));
+                  mainThreadHandler.post(new Runnable() { // return result on UI thread
+                    // if result methods are called outside of main, crashes app!
+                    @Override
+                    public void run() {
+                      result.success(pyOutput);  // generates alert to Dart main thread that platform method has returned its output; this is async, b/c platform method call doesn't return anything
+                    }
+                  });
+                }
+              });
             } catch (Exception ex) {
               result.error("1", ex.getMessage(), null);
             }
-          }
-        }).start();
 
     } else {
       result.notImplemented();
