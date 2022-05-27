@@ -5,7 +5,7 @@ import 'dart:developer';
 
 import 'package:camera/camera.dart';
 import 'package:pydroid/pydroid.dart';
-import 'package:pydroid_example/take_picture_screen.dart';
+import 'package:pydroid_example/face_detection/take_picture_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,7 +81,7 @@ class _MyAppState extends State<MyApp> {
         setState(() {
           _returnValue = value;
           _computationTime = totalTime;
-          _isComputationRunning = false; // set blocker
+          _isComputationRunning = false; // unset blocker
         });
       });
     } else {

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:pydroid/pydroid.dart';
+import 'package:pydroid_example/face_detection/canvas.dart';
 
 // A widget that displays the picture taken by the user.
 // Button to run Python method in background to get facial bounding box
@@ -12,7 +13,8 @@ import 'package:pydroid/pydroid.dart';
 class DisplayPictureScreen extends StatefulWidget {
   final String imagePath;
 
-  DisplayPictureScreen({Key? key, required this.imagePath}) : super(key: key);
+  const DisplayPictureScreen({Key? key, required this.imagePath})
+      : super(key: key);
 
   @override
   State<DisplayPictureScreen> createState() => _DisplayPictureScreenState();
@@ -20,12 +22,18 @@ class DisplayPictureScreen extends StatefulWidget {
 
 class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   bool _isComputationRunning = false;
+  bool _isInitialLoad = true;
+  Color get _borderColor =>
+      ((_face == Rect.zero) ? Colors.red : Colors.green.shade200);
+  Rect _face = Rect.zero;
+  Rect _forehead = Rect.zero;
 
   void _detectFace() async {
     // The image is stored as a file on the device. Use the `Image.file`
     // constructor with the given path to display the image.
     log("[Flutter] Detect face start...");
     var img = widget.imagePath;
+    _isInitialLoad = false; // set indicator so border color is set correctly
     log("Image is located @ $img");
 
     if (!_isComputationRunning) {
@@ -36,9 +44,10 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
       var startTime = DateTime.now();
       Pydroid.getFaceForImage(img).then((value) {
         var totalTime = DateTime.now().difference(startTime).inMilliseconds;
-        log("[Flutter] Received value '$value'");
+        log("[Flutter] Received value '$value' in $totalTime milliseconds");
         setState(() {
-          _isComputationRunning = false; // set blocker
+          _face = value;
+          _isComputationRunning = false; // unset blocker
         });
       });
     } else {
@@ -64,7 +73,21 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                   : const SizedBox.shrink(),
             ],
           ),
-          Image.file(File(widget.imagePath)),
+          Container(
+            child: CustomPaint(
+              foregroundPainter: FacePainter(
+                context,
+                _face,
+                _forehead,
+              ),
+              child: Image.file(File(widget.imagePath)),
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: _isInitialLoad ? Colors.transparent : _borderColor,
+                  width: 5),
+            ),
+          ),
         ],
       ),
     );
