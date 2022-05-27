@@ -1,5 +1,6 @@
 package com.jacobsonlab.pydroid;
+import java.util.HashMap;
 
 interface PythonCallback {
-    void onComplete(String result);
+    void onComplete(HashMap<String, String> result);
 }

@@ -1,14 +1,15 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter/services.dart';
+import 'package:camera/camera.dart';
 import 'package:pydroid/pydroid.dart';
+import 'package:pydroid_example/take_picture_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  runApp(MaterialApp(title: "Pydroid Example", home: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
@@ -20,8 +21,8 @@ class _MyAppState extends State<MyApp> {
   String? _platformVersion = 'Unknown';
   int _hitCount = 0;
   bool _isComputationRunning = false;
-  int _nIterations = 100;
-  int _modelSize = 1000000;
+  int _nIterations = 10;
+  int _modelSize = 10000;
   int _computationTime = 0;
   String? _returnValue = "0";
 
@@ -52,21 +53,31 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void _runTest() {
+  void _runTest() async {
     log("[Flutter] _runTest");
-    Pydroid.runTest().then((value) => log("Returned string of length $value"));
+    // Pydroid.runTest().then((value) => log("Returned string of length $value"));
+
+    // open screen to take picture
+    // display image in view
+    final cameras = await availableCameras();
+    log(cameras.toString());
+    final firstCamera = cameras.last;
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => TakePictureScreen(camera: firstCamera)));
   }
 
-  void _executeScript() {
+  void _executeScriptLR() {
     if (!_isComputationRunning) {
       log("[Flutter] main.dart - Executing script...");
       setState(() {
         _isComputationRunning = true; // set blocker
       });
       var startTime = DateTime.now();
-      Pydroid.executeInBackground(_nIterations, _modelSize).then((value) {
+      Pydroid.executeLinRegInBackground(_nIterations, _modelSize).then((value) {
         var totalTime = DateTime.now().difference(startTime).inMilliseconds;
-        log("Returned value '$value'");
+        log("[Flutter] Received value '$value'");
         setState(() {
           _returnValue = value;
           _computationTime = totalTime;
@@ -94,7 +105,8 @@ class _MyAppState extends State<MyApp> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               Text('Running on: $_platformVersion\n'),
-              // TextButton(onPressed: _runTest, child: const Text("Run Test")),
+              TextButton(
+                  onPressed: _executeScriptLR, child: const Text("Run Test")),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
@@ -155,8 +167,8 @@ class _MyAppState extends State<MyApp> {
                         )
                       : const SizedBox.shrink(),
                   TextButton(
-                    onPressed: _executeScript,
-                    child: const Text("Execute Python (LinReg) Script"),
+                    onPressed: _runTest,
+                    child: const Text("Take picture"),
                   ),
                 ],
               ),

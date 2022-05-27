@@ -5,6 +5,7 @@ import android.os.Handler;
 import androidx.core.os.HandlerCompat;
 import android.os.Looper;
 
+import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,7 +28,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
   /// The MethodChannel that handles communication between Flutter and native Android
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it when the Flutter Engine is detached from the Activity
-  
+
   private MethodChannel channel;
   private PythonHandler pyHandler;
   private static final String channelName = "pydroid";
@@ -89,59 +90,70 @@ public class PydroidPlugin implements FlutterPlugin, MethodCallHandler, Activity
         result.error("1", ex.getMessage(), null);
       }
 
-    } else if (call.method.equals("test")) {
-      System.out.println("[java] running Python test...");
+    } else if (call.method.equals("executeInBackground")) {
+      System.out.println("[java] Generic execute in background function...");
+      System.out.println("Current thread: " + Thread.currentThread().getName());
+
+      String pyScript = call.argument(PythonHandler.KEY_SCRIPT);
+      System.out.println(call.arguments().toString());
+      HashMap<String, Object> allArguments = call.arguments();
+      System.out.println("[java] Call arguments " + allArguments);
+      // convert to JSON to pass to python?
       try {
-        if (pyHandler == null) {
-          System.out.println("[java] python handler is null, initialize???");
-          // no access to context from here
-          // pyHandler = new PythonHandler(context);
-        } else {
-          System.out.println("[java] python handler is NOT null");
-        }
-        int res = pyHandler.test().length();
-        result.success(res);
+        pyHandler.executePyScriptAsync(pyScript, allArguments, new PythonCallback() {
+          @Override
+          public void onComplete(HashMap<String, String> pyOutput) {
+            System.out.println(String.format("[java] Return dict: %s", pyOutput));
+            mainThreadHandler.post(new Runnable() {
+              // return result on UI (main) thread else app crashes!
+              @Override
+              public void run() {
+                System.out.println("inside run method");
+                // Generate alert to Dart main thread that platform method has returned its output through callback (this is async, platform method call doesn't return anything)
+                if (pyOutput.containsKey(PythonHandler.KEY_OUTPUT_ERROR)) {
+                  // error occurred
+                  System.out.println("returning ERROR");
+                  String errorMsg = pyOutput.get(PythonHandler.KEY_OUTPUT_ERROR);
+                  result.error("00", errorMsg, null);
+                } else {
+                  System.out.println("returning SUCCESS");
+                  String resultAsJSON = pyOutput.get(PythonHandler.KEY_OUTPUT_VALUE);  // object comes back as JSON
+                  result.success(resultAsJSON);
+                }
+              }
+            });
+          }
+        });
       } catch (Exception ex) {
         result.error("1", ex.getMessage(), null);
       }
 
-    } else if (call.method.equals("execute")) {
-      System.out.println("[droid] execute...");
-      try {
-        if (pyHandler == null) {
-          System.out.println("[java] python handler is null, initialize???");
-          // no access to context from here
-          // pyHandler = new PythonHandler(context);
-        } else {
-          System.out.println("[java] python handler is NOT null");
-        }
-        result.success(pyHandler.executeScriptSync());
-      } catch (Exception ex) {
-        result.error("1", ex.getMessage(), null);
-      }
-
-    }  else if (call.method.equals("executeInBackground")) {
+    } else if (call.method.equals("executeScriptLR")) {
       int iterations = call.argument("iterations");
       int modelSize = call.argument("modelSize");
       System.out.println("[droid] executeInBackground...");
       System.out.println("Current thread: " + Thread.currentThread().getName());
-            try {
-              pyHandler.executeScriptAsync(iterations, modelSize, new PythonCallback() {
-                @Override
-                public void onComplete(String pyOutput) {
-                  System.out.println(String.format("[droid] Return value: %s", pyOutput));
-                  mainThreadHandler.post(new Runnable() { // return result on UI thread
-                    // if result methods are called outside of main, crashes app!
-                    @Override
-                    public void run() {
-                      result.success(pyOutput);  // generates alert to Dart main thread that platform method has returned its output; this is async, b/c platform method call doesn't return anything
-                    }
-                  });
-                }
-              });
-            } catch (Exception ex) {
-              result.error("1", ex.getMessage(), null);
-            }
+      try {
+        pyHandler.executeScriptLRAsync(iterations, modelSize, new PythonCallback() {
+          @Override
+          public void onComplete(HashMap<String, String> pyOutput) {
+            System.out.println(String.format("[droid] Return value: %s", pyOutput));
+            mainThreadHandler.post(new Runnable() { // return result on UI thread
+              // if result methods are called outside of main, crashes app!
+              @Override
+              public void run() {
+                result.success(pyOutput);  // generates alert to Dart main thread that platform method has returned its output; this is async, b/c platform method call doesn't return anything
+              }
+            });
+          }
+        });
+      } catch (Exception ex) {
+        result.error("1", ex.getMessage(), null);
+      }
+
+    } else if (call.method.equals("faceForImage")) { 
+      // executes script to get bounding box for image in background
+      String pyScript = call.argument(PythonHandler.KEY_SCRIPT);
 
     } else {
       result.notImplemented();
