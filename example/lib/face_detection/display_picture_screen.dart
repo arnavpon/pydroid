@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:developer';
-import 'dart:async';
 import 'dart:io';
 
 import 'package:pydroid/pydroid.dart';
@@ -28,7 +27,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   Rect _face = Rect.zero;
   Rect _forehead = Rect.zero;
 
-  void _detectFace() async {
+  void _detectFace() {
     // The image is stored as a file on the device. Use the `Image.file`
     // constructor with the given path to display the image.
     log("[Flutter] Detect face start...");
