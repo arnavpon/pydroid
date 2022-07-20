@@ -24,10 +24,10 @@ def is_video(path):
 class FacialImageProcessing:
     # minsize: minimum of faces' size
     def __init__(self, print_stat=False, minsize = 32):
+        print("[FacialImageProcessing init]")
         self.print_stat=print_stat
         self.minsize=minsize
         
-        print("finding path of model...")
         print(__file__)
         models_path, _ = os.path.split(os.path.realpath(__file__))
         print(models_path)
@@ -44,10 +44,12 @@ class FacialImageProcessing:
         self.pnet, self.rnet, self.onet = FacialImageProcessing.load_mtcnn(self.sess,full_graph)     
 
     def close(self):
+        print("[close]")
         self.sess.close()
     
     @staticmethod
     def load_graph_def(frozen_graph_filename):
+        print("[load_graph_def]")
         graph_def=None
         with tf.io.gfile.GFile(frozen_graph_filename, 'rb') as f:
             graph_def = tf.compat.v1.GraphDef()
@@ -56,6 +58,7 @@ class FacialImageProcessing:
     
     @staticmethod
     def load_graph(frozen_graph_filename, prefix=''):
+        print("[load_graph]")
         graph_def = FacialImageProcessing.load_graph_def(frozen_graph_filename)
         with tf.Graph().as_default() as graph:
             tf.import_graph_def(graph_def, name=prefix)
@@ -63,6 +66,7 @@ class FacialImageProcessing:
 
     @staticmethod
     def load_mtcnn(sess,graph):
+        print("[load_mtcnn]")
         pnet_out_1=graph.get_tensor_by_name('pnet/conv4-2/BiasAdd:0')
         pnet_out_2=graph.get_tensor_by_name('pnet/prob1:0')
         pnet_in=graph.get_tensor_by_name('pnet/input:0')
@@ -84,6 +88,7 @@ class FacialImageProcessing:
     @staticmethod
     def bbreg(boundingbox,reg):
         # calibrate bounding boxes
+        print("[bbreg] Top...")
         if reg.shape[1]==1:
             reg = np.reshape(reg, (reg.shape[2], reg.shape[3]))
 
@@ -99,6 +104,7 @@ class FacialImageProcessing:
     @staticmethod
     def generateBoundingBox(imap, reg, scale, t):
         # use heatmap to generate bounding boxes
+        print("[generateBoundingBox] top...")
         stride=2
         cellsize=12
 
@@ -126,6 +132,7 @@ class FacialImageProcessing:
     # function pick = nms(boxes,threshold,type)
     @staticmethod
     def nms(boxes, threshold, method):
+        print("[nms] Top...")
         if boxes.size==0:
             return np.empty((0,3))
         x1 = boxes[:,0]
@@ -161,6 +168,7 @@ class FacialImageProcessing:
     @staticmethod
     def pad(total_boxes, w, h):
         # compute the padding coordinates (pad the bounding boxes to square)
+        print("[pad] Top...")
         tmpw = (total_boxes[:,2]-total_boxes[:,0]+1).astype(np.int32)
         tmph = (total_boxes[:,3]-total_boxes[:,1]+1).astype(np.int32)
         numbox = total_boxes.shape[0]
@@ -197,6 +205,7 @@ class FacialImageProcessing:
     @staticmethod
     def rerec(bboxA):
         # convert bboxA to square
+        print("[rerec] Top...")
         h = bboxA[:,3]-bboxA[:,1]
         w = bboxA[:,2]-bboxA[:,0]
         l = np.maximum(w, h)
@@ -206,6 +215,7 @@ class FacialImageProcessing:
         return bboxA
 
     def detect_faces(self,img):
+        print("[detect_faces] Top...")
         # im: input image
         # threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
         threshold = [ 0.6, 0.7, 0.9 ]  # three steps's threshold
@@ -330,7 +340,8 @@ class FacialImageProcessing:
                 total_boxes = total_boxes[pick,:]
                 points = points[:,pick]
         #elapsed = time.time() - t
-        #print('4 phase elapsed=%f'%(elapsed))            
+        #print('4 phase elapsed=%f'%(elapsed))  
+        print("[detect_faces] Boxes: {0} | Points: {1}".format(total_boxes, points))          
         return total_boxes, points
     
     
@@ -345,8 +356,14 @@ def main(arguments):
     
     imgProcessing = FacialImageProcessing(False)
     bounding_boxes, _ = imgProcessing.detect_faces(img)
-    bbox=bounding_boxes[0]
-    print(bbox)
-    bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
-    print(bbox_dict)
+
+    if len(bounding_boxes) > 0:
+        bbox=bounding_boxes[0]
+        bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
+        print("Bounding Boxes: {0}".format(bbox_dict))
+    else:
+        print("No face detected!")
+        bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
+    
     return json.dumps(bbox_dict)  # returns value as JSON object
+    

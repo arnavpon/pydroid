@@ -5,6 +5,7 @@ import 'dart:developer';
 
 import 'package:camera/camera.dart';
 import 'package:pydroid/pydroid.dart';
+import 'package:pydroid_example/face_detection/choose_picture_screen.dart';
 import 'package:pydroid_example/face_detection/take_picture_screen.dart';
 
 void main() {
@@ -53,19 +54,30 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void _runTest() async {
-    log("[Flutter] _runTest");
-    // Pydroid.runTest().then((value) => log("Returned string of length $value"));
-
-    // open screen to take picture
-    // display image in view
+  void _takePicture() async {
+    // opens screen to take picture
     final cameras = await availableCameras();
-    log(cameras.toString());
-    final firstCamera = cameras.last;
-    Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => TakePictureScreen(camera: firstCamera)));
+    log("Available cameras: ${cameras.toString()}");
+    if (cameras.isNotEmpty) {
+      final firstCamera = cameras.last;
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => TakePictureScreen(camera: firstCamera)));
+    }
+  }
+
+  void _selectPicture() async {
+    // opens image picker screen
+    Navigator.push(context,
+        MaterialPageRoute(builder: (context) => const ChoosePictureScreen()));
+  }
+
+  void _runTest() {
+    log("[Flutter] main.dart - running test...");
+    Pydroid.runTest().then((value) {
+      log("[Flutter] Received value $value");
+    });
   }
 
   void _executeScriptLR() {
@@ -167,9 +179,13 @@ class _MyAppState extends State<MyApp> {
                         )
                       : const SizedBox.shrink(),
                   TextButton(
-                    onPressed: _runTest,
+                    onPressed: _takePicture,
                     child: const Text("Take picture"),
                   ),
+                  TextButton(
+                    onPressed: _selectPicture,
+                    child: const Text("Select Picture"),
+                  )
                 ],
               ),
               Text("Total Computation Time: $_computationTime (ms)"),

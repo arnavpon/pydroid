@@ -22,7 +22,7 @@ class Pydroid {
     return version;
   }
 
-  // Practice Example
+  // Examples
 
   static Future<int?> runTest() async {
     log("[flutter] pydroid.dart - runTest called...");
@@ -35,6 +35,33 @@ class Pydroid {
     final String? result = await _channel.invokeMethod('execute');
     return result;
   }
+
+  static Future<String?> executeLinRegInBackground(
+      int iterations, int modelSize) async {
+    log("[flutter] pydroid.dart - executing LR script...");
+    final result = await executeInBackground('lin_reg', {
+      "iterations": iterations,
+      "model_size": modelSize,
+    });
+    if (result[KEY_OUTPUT_ERROR] == null) {
+      final value = result[KEY_OUTPUT_VALUE];
+      return double.parse("$value").toStringAsFixed(2);
+    } else {
+      return "...error...";
+    }
+  }
+
+  static Future<Object?> runInlineScript(String code) async {
+    // runs python inline
+    final Object? result = await _channel.invokeMethod('executeInlineCode');
+    return result;
+  }
+
+  static Future<Object?> runScriptWithArguments() async {
+    // use invokeMapMethod to input args
+  }
+
+  // MARK: - Facial Detection Methods
 
   static Future<Map<String, dynamic>> executeInBackground(
       String script, Map<String, dynamic> args) async {
@@ -61,21 +88,6 @@ class Pydroid {
     return returnValue;
   }
 
-  static Future<String?> executeLinRegInBackground(
-      int iterations, int modelSize) async {
-    log("[flutter] pydroid.dart - executing LR script...");
-    final result = await executeInBackground('lin_reg', {
-      "iterations": iterations,
-      "model_size": modelSize,
-    });
-    if (result[KEY_OUTPUT_ERROR] == null) {
-      final value = result[KEY_OUTPUT_VALUE];
-      return double.parse("$value").toStringAsFixed(2);
-    } else {
-      return "...error...";
-    }
-  }
-
   static Future<Rect> getFaceForImage(String imagePath) async {
     log("[flutter] pydroid.dart - getting face for image...");
     final result = await executeInBackground(
@@ -93,19 +105,5 @@ class Pydroid {
       log("[dart] error returned");
       return Rect.zero;
     }
-  }
-
-  /// A class that handles native python computations on native background threads
-  /// returns dynamic data w/ type metadata?
-  /// installation of desired python packages using pip at start
-
-  static Future<Object?> runInlineScript(String code) async {
-    // runs python inline
-    final Object? result = await _channel.invokeMethod('executeInlineCode');
-    return result;
-  }
-
-  static Future<Object?> runScriptWithArguments() async {
-    // use invokeMapMethod to input args
   }
 }

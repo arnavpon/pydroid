@@ -1,37 +1,53 @@
+import 'dart:developer';
 import 'dart:ui' as ui;
-import 'dart:math';
-import 'package:flutter/material.dart';
 
-// subset rnd part image, red/green val
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class FacePainter extends CustomPainter {
-  /// draws the bounds of the face & forehead on a specified canvas?
+  /// draws the bounds of the face & forehead on a specified canvas
+  /// Canvas extends the full length of its container, it's the Image widget that is cropped
 
   BuildContext ctx;
-  final Rect face; // bounding rectangle of face
-  // Rect get faceBounds => (face == null) ? Rect.zero : face.boundingBox;
+  Rect face; // bounding rectangle of face
   Rect forehead;
+  ui.Image? image;
   FacePainter(this.ctx, this.face, this.forehead);
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
-    final double strokeWidth = 2.0;
+    // if (image != null) {
+    //   // ***hack
+    //   log("image exists!");
+    //   // image is loaded async
+    //   // try this instead of displaying image file...
+    //   paintImage(
+    //       canvas: canvas,
+    //       rect: Rect.fromPoints(
+    //           const Offset(0, 0), Offset(size.width, size.height)),
+    //       image: image!);
+    //   // return;
+    // } else {
+    //   log("image is NULL!");
+    // }
+
+    const double strokeWidth = 2.0;
     final Paint referencePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..color = Colors.white;
     final Paint headPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
+      ..strokeWidth = strokeWidth * 2
       ..color = Colors.lime.shade300;
     final Paint foreheadPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth / 2
       ..color = Colors.lime.shade200;
 
-    final double screenWidth = 300;
-    final double screenHeight = 600;
-    print("Painter Screen: W = $screenWidth H = $screenHeight");
+    final double screenWidth = size.width;
+    final double screenHeight = size.height;
+    // log("Painter Screen: W = $screenWidth H = $screenHeight");
     var boxSize = 150.0; // height/width of ref box
 
     final topLeftBox = Rect.fromCenter(
@@ -55,16 +71,19 @@ class FacePainter extends CustomPainter {
     canvas.drawRect(topLeftBox, referencePaint);
     canvas.drawRect(midBox, referencePaint);
     canvas.drawRect(bottomRightBox, referencePaint);
+
+    double xOffset = -25;
+    double yOffset = -75;
+    // var shiftedBox = Rect.fromPoints(
+    //     _shiftPoint(face.topLeft, xOffset, yOffset),
+    //     _shiftPoint(face.bottomRight, xOffset, yOffset));
     canvas.drawRect(face, headPaint);
+    // canvas.drawRect(shiftedBox, foreheadPaint);
     canvas.drawRect(forehead, foreheadPaint);
+  }
 
-    // rotations & stuff might be to get canvas & image to match each other...
-
-    // canvas.rotate(
-    //     -pi / 2); // if you don't rotate, box doesn't show up on canvas, why?
-    // canvas.translate(-(MediaQuery.of(context).size.height * 0.77) ?? 0,
-    //     MediaQuery.of(context).size.width * 1.15); // ?
-    // canvas.scale(1.9, -1.9); // ?
+  Offset _shiftPoint(Offset point, double byX, double byY) {
+    return Offset(point.dx + byX, point.dy + byY);
   }
 
   @override

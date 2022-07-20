@@ -39,9 +39,12 @@ android {
         }
         python {
             buildPython "/Users/arnavpon/opt/anaconda3/envs/chaquopy/bin/python3.8"
-            pip {
-                install 'numpy'
-                install 'scikit-learn'
+            pip { 
+                // installing packages in plugin is redundant for now while using the example app, might become relevant when using this as a true plugin
+                // install 'numpy'
+                // install 'scikit-learn'
+                // install 'tensorflow'
+                // install 'opencv-python'
             }
         }
     }
