@@ -9,6 +9,7 @@ import tensorflow as tf
 import cv2
 
 # TODO: make it so that these image sizes aren't hardcoded
+IMG_THRESH = 800  # for differentiating between images taken locally in the app and ones loaded from library
 TAKEN_W = 401.42857142857144
 TAKEN_H = 602.1428571428572
 LOADED_W = 401.42857142857144
@@ -353,17 +354,25 @@ class FacialImageProcessing:
     
 # Central entry point for this file
 
-def main(arguments):    
+def main(arguments):
+    """
+    Cleaned up main method for face detection with hardcoded dimensions for images based on the specific
+    Google Pixel that I'm using. That will need to be improved in the future.
+    """
+
     print(f'[python] Main method of face_detection script...')
     image = arguments.get("image_path")
+    
     print(f'[python] Detecting face @ path {image}...')
     img = cv2.imread(image)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    print('dims are', img.shape)
-    if img.shape[0] < 800:
-        img = cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)
-    else: img = cv2.resize(img, (int(LOADED_W), int(LOADED_H)), interpolation = cv2.INTER_AREA)
-    print('new dims are', img.shape)
+
+    # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
+    img = (
+        cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)
+        if img.shape[0] < IMG_THRESH
+        else cv2.resize(img, (int(LOADED_W), int(LOADED_H)), interpolation = cv2.INTER_AREA)
+    )
     
     imgProcessing = FacialImageProcessing(False)
     bounding_boxes, _ = imgProcessing.detect_faces(img)
@@ -376,7 +385,5 @@ def main(arguments):
         print("No face detected!")
         bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
     
-    #print('returning the new though')
-    #return json.dumps({'x1': 79.73535619676113, 'y1': 210.45617026090622, 'x2': 377.79211588948965, 'y2': 609.8917332775891})
     return json.dumps(bbox_dict)  # returns value as JSON object
     
