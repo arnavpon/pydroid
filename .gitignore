@@ -5,3 +5,6 @@
 .pub/
 
 build/
+
+# Sam's local dev
+example/android/app/build.gradle
