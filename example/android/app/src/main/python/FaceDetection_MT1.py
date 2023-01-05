@@ -8,6 +8,8 @@ import numpy as np
 import tensorflow as tf
 import cv2
 
+from forehead import find_forehead
+
 # TODO: make it so that these image sizes aren't hardcoded
 IMG_THRESH = 800  # for differentiating between images taken locally in the app and ones loaded from library
 TAKEN_W = 401.42857142857144
@@ -384,6 +386,10 @@ def main(arguments):
     else:
         print("No face detected!")
         bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
-    
+
+    print('BBOX is: ', bbox_dict)
+    bbox_dict['y2'] -= find_forehead(img, bbox_dict)
+    print('BBOX is now: ', bbox_dict)
+
     return json.dumps(bbox_dict)  # returns value as JSON object
     
