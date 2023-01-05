@@ -21,7 +21,7 @@ def find_forehead(img, bbox):
     # return the y position of the top of the nose bridge
     # we can then use this value to adjust the bounding box
     # to enclose just the user's forehead
-    face = list(face_landmarks.keys())[0]
+    face = face_landmarks[0]
     return face['nose_bridge'][-1][1]
 
 def _crop_image(img, bbox):
