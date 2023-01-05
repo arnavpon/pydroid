@@ -18,18 +18,17 @@ def find_forehead(img, bbox):
     # find facial features for the face in the image
     face_landmarks = face_recognition.face_landmarks(img_for_fr)
 
-    ys = []
-    for face in face_landmarks:
-        return face['nose_bridge'][-1][1]
-        # print(face['nose_bridge'])
-        # for pos in face['nose_bridge']: ys.append(pos[1])
-        # for pos in face['right_eyebrow']: ys.append(pos[IDX])
-    
-    print('Retuning ', int(sum(ys) / len(ys)))
-    return int(sum(ys) / len(ys))
-
+    # return the y position of the top of the nose bridge
+    # we can then use this value to adjust the bounding box
+    # to enclose just the user's forehead
+    face = list(face_landmarks.keys())[0]
+    return face['nose_bridge'][-1][1]
 
 def _crop_image(img, bbox):
+    """
+    Given an image and bounding box, return a version of the image
+    cropped to just include the bounding box.
+    """
 
     x = bbox['x1']
     y = bbox['y1']

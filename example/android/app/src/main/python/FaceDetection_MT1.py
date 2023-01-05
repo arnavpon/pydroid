@@ -387,9 +387,8 @@ def main(arguments):
         print("No face detected!")
         bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
 
-    print('BBOX is: ', bbox_dict)
+    # adjust y2 value so that box encloses just the user's forehead
     bbox_dict['y2'] -= find_forehead(img, bbox_dict)
-    print('BBOX is now: ', bbox_dict)
 
     return json.dumps(bbox_dict)  # returns value as JSON object
     
