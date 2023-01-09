@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:video_player/video_player.dart';
+import 'package:pydroid/pydroid.dart';
 import 'dart:io';
 
 class VideoPage extends StatefulWidget {
@@ -28,6 +29,10 @@ class _VideoPageState extends State<VideoPage> {
     await _videoPlayerController.play();
   }
 
+  void _callPydroid() async {
+    Pydroid.analyzeVideo(widget.filePath);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,7 +46,14 @@ class _VideoPageState extends State<VideoPage> {
             onPressed: () {
               print('do something with the file');
             },
-          )
+          ),
+          TextButton(
+            onPressed: _callPydroid,
+            child: const Text(
+              "Analyze video",
+              textScaleFactor: 1.4,
+            ),
+          ),
         ],
       ),
       extendBodyBehindAppBar: true,
