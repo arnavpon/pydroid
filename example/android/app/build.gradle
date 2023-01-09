@@ -44,12 +44,14 @@ android {
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
         python {
-            buildPython "/Users/arnavpon/opt/anaconda3/envs/chaquopy/bin/python3.8"
+            // buildPython "/Users/arnavpon/opt/anaconda3/envs/chaquopy/bin/python3.8"
+            buildPython "/Users/samuelhmorton/opt/anaconda3/bin/python"
             pip {
                 install 'numpy'
                 install 'scikit-learn'
                 install 'tensorflow'
                 install 'opencv-python'
+                install 'face_recognition'
             }
         }
     }

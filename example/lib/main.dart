@@ -7,6 +7,8 @@ import 'package:camera/camera.dart';
 import 'package:pydroid/pydroid.dart';
 import 'package:pydroid_example/face_detection/choose_picture_screen.dart';
 import 'package:pydroid_example/face_detection/take_picture_screen.dart';
+import 'package:pydroid_example/face_detection/take_video_screen.dart';
+import 'package:pydroid_example/face_detection/take_video_screen2.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,6 +66,18 @@ class _MyAppState extends State<MyApp> {
           context,
           MaterialPageRoute(
               builder: (context) => TakePictureScreen(camera: firstCamera)));
+    }
+  }
+  void _takeVideo() async {
+    // opens screen to take picture
+    final cameras = await availableCameras();
+    log("Available cameras: ${cameras.toString()}");
+    if (cameras.isNotEmpty) {
+      final firstCamera = cameras.last;
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => CameraPage()));
     }
   }
 
@@ -185,6 +199,10 @@ class _MyAppState extends State<MyApp> {
                   TextButton(
                     onPressed: _selectPicture,
                     child: const Text("Select Picture"),
+                  ),
+                  TextButton(
+                    onPressed: _takeVideo,
+                    child: const Text("Take video"),
                   )
                 ],
               ),
