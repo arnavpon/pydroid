@@ -7,6 +7,7 @@ import json
 import numpy as np
 import tensorflow as tf
 import cv2
+import dlib
 
 from forehead import find_forehead
 
@@ -375,6 +376,42 @@ def main(arguments):
         if img.shape[0] < IMG_THRESH
         else cv2.resize(img, (int(LOADED_W), int(LOADED_H)), interpolation = cv2.INTER_AREA)
     )
+
+    print('img shape', img.shape)
+
+    models_path, _ = os.path.split(os.path.realpath(__file__))
+    model_file = os.path.join(models_path, 'shape_predictor_68_face_landmarks.dat')
+    if not os.path.exists(model_file):
+        raise Exception("no model found at specified path")
+
+    # initialize the model for face landmark detection
+    detector = dlib.get_frontal_face_detector()
+    predictor = dlib.shape_predictor(model_file)
+    # convert the image color to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # detect the face
+    faces = detector(gray, 1)
+    lands = []
+    for face in faces:
+        print('in here')
+        # get landmarks
+        landmarks = predictor(gray, face)
+        print('got landmarks', type(landmarks))
+
+        shape_np = np.zeros((68, 2), dtype = int)
+        for i in range(0, 68):
+            shape_np[i] = (landmarks.part(i).x, landmarks.part(i).y)
+        landmarks = shape_np
+
+        lands.append(landmarks)
+
+    print('Printing landmarks')
+    if len(lands) > 0:
+        print(len(lands))
+        print(len(lands[0]))
+        print(lands[0])
+    print('got here')
     
     imgProcessing = FacialImageProcessing(False)
     bounding_boxes, _ = imgProcessing.detect_faces(img)

@@ -52,6 +52,7 @@ android {
                 install 'tensorflow'
                 install 'opencv-python'
                 install 'face_recognition'
+                install 'dlib'
             }
         }
     }

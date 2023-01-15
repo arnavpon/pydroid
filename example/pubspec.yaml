@@ -34,6 +34,7 @@ dependencies:
   path: 
   image_picker: ^0.8.5+3
   video_player: ^2.4.10
+  gallery_saver: ^2.3.2
 
 dev_dependencies:
   flutter_test:
