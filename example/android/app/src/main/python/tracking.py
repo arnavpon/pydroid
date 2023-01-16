@@ -10,20 +10,25 @@ from FaceDetection_MT1 import (
     IMG_THRESH
 )
 
-def track_video(video_path):
+def track_video(video_path = None):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
 
     # load video with cv2
-    video = cv2.VideoCapture(video_path)
+    if video_path is None:
+        video = cv2.VideoCapture(0) # this is the magic!
+    else:
+        video = cv2.VideoCapture(video_path)
+    
+    resize_img = video_path is not None
 
     # read first frame of the video
     success, frame = video.read()
 
     # get bounding box for forehead from first frame
     if success:
-        bbox = _find_forehead(frame)
+        bbox = _find_forehead(frame, resize = resize_img)
     else:
         print('[Python] Face not found in first frame')
         return
@@ -44,7 +49,7 @@ def track_video(video_path):
         if success:
 
             # get new bbox for the current frame
-            curr_img = _track(frame, tracker)
+            curr_img = _track(frame, tracker, resize_img)
 
             # display current frame
             _display_frame(curr_img)
@@ -55,9 +60,9 @@ def track_video(video_path):
     video.release()
 
 
-def _track(frame, tracker):
+def _track(frame, tracker, resize_img):
 
-    img = _process_img(frame)
+    img = _process_img(frame, resize = resize_img)
 
     # make a copy of the frame
     img = np.copy(frame)
@@ -78,9 +83,9 @@ def _track(frame, tracker):
     return img
 
 
-def _find_forehead(img):
+def _find_forehead(img, resize = False):
 
-    img = _process_img(img)
+    img = _process_img(img, resize = resize)
 
     # load facial image recognition class and get initial bounding box
     imgProcessing = FacialImageProcessing(False)
@@ -93,6 +98,7 @@ def _find_forehead(img):
     else:
         print("No face detected!")
         bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
+        return bbox_dict
 
     # adjust y2 value so that box encloses just the user's forehead
     bbox_dict['y2'] -= find_forehead(img, bbox_dict)
@@ -100,17 +106,18 @@ def _find_forehead(img):
     return bbox_dict
 
 
-def _process_img(img):
+def _process_img(img, resize = False):
 
     # convert the image to RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
-    img = (
-        cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)
-        if img.shape[0] < IMG_THRESH
-        else cv2.resize(img, (int(LOADED_W), int(LOADED_H)), interpolation = cv2.INTER_AREA)
-    )
+    if resize:
+        img = (
+            cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)
+            if img.shape[0] < IMG_THRESH
+            else cv2.resize(img, (int(LOADED_W), int(LOADED_H)), interpolation = cv2.INTER_AREA)
+        )
 
     return img
 
@@ -129,3 +136,4 @@ def _display_frame(img, bbox = None):
 
 if __name__ == '__main__':
     track_video('./PXL_20220724_101216902.mp4')
+    # track_video()
