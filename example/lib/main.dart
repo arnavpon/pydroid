@@ -7,7 +7,8 @@ import 'package:camera/camera.dart';
 import 'package:pydroid/pydroid.dart';
 import 'package:pydroid_example/face_detection/choose_picture_screen.dart';
 import 'package:pydroid_example/face_detection/take_picture_screen.dart';
-import 'package:pydroid_example/face_detection/take_video_screen.dart';
+// import 'package:pydroid_example/face_detection/take_video_screen.dart';
+import 'package:pydroid_example/face_detection/take_pics_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,7 +77,7 @@ class _MyAppState extends State<MyApp> {
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => CameraPage()));
+              builder: (context) => CameraScreen()));
     }
   }
 
