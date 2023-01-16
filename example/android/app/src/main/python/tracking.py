@@ -20,11 +20,12 @@ def track_video(video_path):
 
     # read first frame of the video
     success, frame = video.read()
+
     first_frame_img = np.copy(frame)  # make a copy of the frame for manipulation
 
     # get bounding box for forehead from first frame
     if success:
-        bbox = _find_forehead(first_frame_img)
+        bbox = _find_forehead(frame)
     else:
         print('[Python] Face not found in first frame')
         return
@@ -32,12 +33,12 @@ def track_video(video_path):
     # init the tracker
     tracker = dlib.correlation_tracker()
     rect = dlib.rectangle(int(bbox['x1']), int(bbox['y1']), int(bbox['x2']), int(bbox['y2']))
-    tracker.start_track(first_frame_img, rect)
+    tracker.start_track(frame, rect)
     
     # display the first frame
-    print(first_frame_img)
-    _display_frame(first_frame_img, bbox)
-    print('after')
+    frames = []
+    _display_frame(frame, bbox)
+    frames.append(frame)
 
     while success:
         
@@ -51,7 +52,15 @@ def track_video(video_path):
 
             # display current frame
             _display_frame(curr_img)
+            frames.append(frame)
+
+            if cv2.waitKey(10) == 27:
+                break
     
+    out = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc(*'mp4v'), 30, (720, 1080))
+    for frame in frames:
+        out.write(frame) # frame is a numpy.ndarray with shape (1280, 720, 3)
+    out.release()
     video.release()
 
 
@@ -124,6 +133,7 @@ def _display_frame(img, bbox = None):
             3
         )
     
+    print(img)
     cv2.imshow('Image', img)
 
 
