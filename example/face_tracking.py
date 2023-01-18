@@ -8,9 +8,10 @@ NUM_FIXED = 17
 OUTSIDE_LANDMARK = 3
 INSIDE_LANDMARK = 30
 
-# initialize model
+
+# load the face detector and shape predictor
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor('./shape_predictor_68_face_landmarks.dat')
+predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # load video locally for testing
 vid = cv2.VideoCapture('PXL_20220724_101216902.mp4')
@@ -31,37 +32,29 @@ success, frame = vid.read()
 first_frame_locs = {}
 while success:
 
+    # Convert the image color to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = detector(gray, 1)
-
-    for face in faces:
-        shape = predictor(gray, face)
-        shape_np = np.zeros((68, 2), dtype = int)
-        
-        for i in range(0, NUM_LANDMARKS):
+    # Detect the face
+    rects = detector(gray, 1)
+    # Detect landmarks for each face
+    for rect in rects:
+        # Get the landmark points
+        shape = predictor(gray, rect)
+	# Convert it to the NumPy Array
+        shape_np = np.zeros((68, 2), dtype="int")
+        for i in range(0, 68):
             shape_np[i] = (shape.part(i).x, shape.part(i).y)
         shape = shape_np
 
-        for i, (x, y) in enumerate(shape[0: NUM_FIXED]):
+        # Display the landmarks
+        for i, (x, y) in enumerate(shape):
+	    # Draw the circle to mark the keypoint 
             cv2.circle(frame, (x, y), 1, (0, 0, 255), -1)
-    
-    if len(first_frame_locs) == 0:
-        for i in range(NUM_FIXED):
-            first_frame_locs[i] = shape[i]
-    else:
-        A, b = _get_translation(shape, first_frame_locs)
-    
-    # determine poi
-    poix = (shape[OUTSIDE_LANDMARK][0] + shape[INSIDE_LANDMARK][0]) / 2
-    poiy = (shape[OUTSIDE_LANDMARK][1] + shape[INSIDE_LANDMARK][1]) / 2
-    poi = np.array([poix, poiy])
-
-    # transform poi
-    poi_T = (A * poi) + b
-
-	
+		
+    # Display the image
     cv2.imshow('Landmark Detection', frame)
 
+    # Press the escape button to terminate the code
     if cv2.waitKey(10) == 27:
         break
 
