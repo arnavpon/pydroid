@@ -106,4 +106,32 @@ class Pydroid {
       return Rect.zero;
     }
   }
+
+  static void analyzeVideo(String videoPath) async {
+    final result = await executeInBackground(
+        'GetHeartrate', {"vid_path": videoPath});
+    print("WE HAVE");
+    print(result);
+  }
+
+  static Future<Rect> analyzeStream(String path) async {
+    final result = await executeInBackground(
+      'AnalyzeStream', {"img_path": path}
+    );
+
+    if (result[KEY_OUTPUT_ERROR] == null) {
+      log("[dart] Converting object to rect...");
+      // convert successful result to expected format (bounding box)
+      Map<String, dynamic> value = result[KEY_OUTPUT_VALUE];
+      final topLeft = Offset(value["x1"] as double, value["y1"] as double);
+      final bottomRight = Offset(value["x2"] as double, value["y2"] as double);
+      final rect = Rect.fromPoints(topLeft, bottomRight);
+      log("Final rect: ${rect.toString()}");
+      return rect;
+    } else {
+      log("[dart] error returned");
+      return Rect.zero;
+    }
+  }
 }
+
