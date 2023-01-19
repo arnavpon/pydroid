@@ -57,23 +57,30 @@ class _CameraScreenState extends State<CameraScreen> {
       body: Column(
         children: <Widget>[
           AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: CameraPreview(_controller),
-          ),
-          Container(
             child: CustomPaint(
               foregroundPainter: FacePainter(
                 context,
                 _face,
                 _forehead,
-              ), // get reference to facePainter so we can update the image object ***hack,
-              child: Image.file(
-                File(_path),
-                scale: 0.75,
               ),
-              // child: const SizedBox.shrink(),
+              child: CameraPreview(_controller),
             ),
+            aspectRatio: _controller.value.aspectRatio,
           ),
+          // Container(
+          //   child: CustomPaint(
+          //     foregroundPainter: FacePainter(
+          //       context,
+          //       _face,
+          //       _forehead,
+          //     ), // get reference to facePainter so we can update the image object ***hack,
+          //     child: Image.file(
+          //       File(_path),
+          //       scale: 0.75,
+          //     ),
+          //     // child: const SizedBox.shrink(),
+          //   ),
+          // ),
           SizedBox(height: 10),
           TextButton(
             child: Text(_isStreaming ? 'Stop Stream' : 'Start Stream'),
