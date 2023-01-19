@@ -9,6 +9,9 @@ import 'package:pydroid_example/face_detection/choose_picture_screen.dart';
 import 'package:pydroid_example/face_detection/take_picture_screen.dart';
 // import 'package:pydroid_example/face_detection/take_video_screen.dart';
 import 'package:pydroid_example/face_detection/take_pics_page.dart';
+import 'package:pydroid_example/face_detection/test.dart';
+import 'package:pydroid_example/face_detection/test2.dart';
+// import 'package:pydroid_example/face_detection/global_bindings.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,7 +80,8 @@ class _MyAppState extends State<MyApp> {
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => CameraScreen()));
+              builder: (context) => MyHomePage(title: 'Sam')));
+              // builder: (context) => CameraScreen()));
     }
   }
 

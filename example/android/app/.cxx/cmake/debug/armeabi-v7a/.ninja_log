@@ -1,0 +1,5 @@
+# ninja log v5
+0	55	1674141858	CMakeFiles/convertImage.dir/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/ios/Classes/converter.c.o	89b1ec6140c95ecc
+56	83	1674141858	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/armeabi-v7a/libconvertImage.so	946d60e1382badaf
+10	220	1674149467	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/armeabi-v7a/libconvertImage.so	946d60e1382badaf
+1	246	1674157110	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/armeabi-v7a/libconvertImage.so	946d60e1382badaf

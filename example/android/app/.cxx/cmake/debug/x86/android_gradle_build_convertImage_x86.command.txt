@@ -1,0 +1,7 @@
+Executable : /Users/samuelhmorton/Library/Android/sdk/cmake/3.10.2.4988404/bin/ninja
+arguments : 
+-C
+/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/.cxx/cmake/debug/x86
+convertImage
+jvmArgs : 
+

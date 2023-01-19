@@ -4,33 +4,32 @@ import PIL
 from PIL import Image
 import imghdr
 import json
+import pickle
+
+from tracking import track_image
 
 
 def main(arguments):
+    print('in the script')
 
-    img_path = arguments.get("img_path")
-    print("THE PATH", img_path, os.path.exists(img_path))
+    # load image from the given path
+    img_path = arguments.get('img_path')
     img = cv2.imread(img_path)
-    # img2 = io.imread(img_path)
-    print('PRIngitng the img')
-    print(f'SAM: {type(img)}, {img.shape}')
-    print(img)
 
-    try:
-        if os.path.exists(img_path): print('It exists')
-        im = Image.open(img_path)
-        im.verify() #I perform also verify, don't know if he sees other types o defects
-        im.close() #reload is necessary in my case
-        # im = Image.load(img_path) 
-        # im.transpose(PIL.Image.FLIP_LEFT_RIGHT)
-        # im.close()
-    except Exception as e: 
-        print(img.what(img_path))
-        print(f'[Python] BROKEN: {e}')
+    print('in here')
 
-    # print('printing from plt')
-    # print(img2)
+    # check if correlation tracker given
+    tracker_path = arguments.get('tracker_path')
+    if tracker_path != '':
+        tracker_file = open(tracker_path, 'r')
+        tracker = pickle.load(tracker_file)
+        tracker_file.close()
+    else: tracker = None
 
-    print(f'Img shape: {img.shape}')
-    bbox = {'x1': img.shape[0] / 4, 'y1': img.shape[1] / 4, 'x2': (3 * img.shape[0]) / 4, 'y2': (3*img.shape[1])/4}
+    print('GOT HERE')
+    print(img.shape)
+    print(tracker)
+    print('==End')
+    
+    bbox = track_image(img, tracker)
     return json.dumps(bbox)

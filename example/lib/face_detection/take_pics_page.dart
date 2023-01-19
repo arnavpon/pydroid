@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/src/camera_controller.dart';
-import 'package:path_provider/path_provider.dart';
+// import 'package:path_provider/path_provider.dart';
 import 'package:pydroid/pydroid.dart';
 import 'dart:io';
 import 'package:pydroid_example/face_detection/canvas.dart';
@@ -19,7 +19,10 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Rect _face = Rect.zero;
   Rect _forehead = Rect.zero;
+  bool _started = false;
   String _path = '';
+  String tracker_path = 'tracker.sav';
+  String hardcodedPath = '/data/user/0/com.jacobsonlab.pydroid_example/app_flutter/Pictures/flutter_test';
 
   @override
   void initState() {
@@ -58,7 +61,7 @@ class _CameraScreenState extends State<CameraScreen> {
         children: <Widget>[
           SizedBox(
             width: 480,
-            height: 720,
+            height: 300,
             child: AspectRatio(
             child: CustomPaint(
                 foregroundPainter: FacePainter(
@@ -71,20 +74,20 @@ class _CameraScreenState extends State<CameraScreen> {
               aspectRatio: _controller.value.aspectRatio,
             ),
           ),
-          // Container(
-          //   child: CustomPaint(
-          //     foregroundPainter: FacePainter(
-          //       context,
-          //       _face,
-          //       _forehead,
-          //     ), // get reference to facePainter so we can update the image object ***hack,
-          //     child: Image.file(
-          //       File(_path),
-          //       scale: 0.75,
-          //     ),
-          //     // child: const SizedBox.shrink(),
-          //   ),
-          // ),
+          Container(
+            child: CustomPaint(
+              foregroundPainter: FacePainter(
+                context,
+                _face,
+                _forehead,
+              ), // get reference to facePainter so we can update the image object ***hack,
+              child: Image.file(
+                File(_path),
+                scale: 0.75,
+              ),
+              // child: const SizedBox.shrink(),
+            ),
+          ),
           SizedBox(height: 10),
           TextButton(
             child: Text(_isStreaming ? 'Stop Stream' : 'Start Stream'),
@@ -96,10 +99,12 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<String> saveImageFile(imageBytes, count) async {
-    final Directory extDir = await getApplicationDocumentsDirectory();
-    final String dirPath = '${extDir.path}/Pictures/flutter_test';
-    await Directory(dirPath).create(recursive: true);
-    final String filePath = '$dirPath/${count}.jpg';
+    // final Directory extDir = await getApplicationDocumentsDirectory();
+    // final String dirPath = '${extDir.path}/Pictures/flutter_test';
+    // print('DDIDDIIDD');
+    // print(dirPath);
+    await Directory(hardcodedPath).create(recursive: true);
+    final String filePath = '${hardcodedPath}/${count}.jpg';
 
     if (_controller.value.isTakingPicture) {
       // A capture is already pending, do nothing.
@@ -124,11 +129,8 @@ class _CameraScreenState extends State<CameraScreen> {
       print("img format: ${image.format} planes: ${image.planes}");
       List<int> imageBytes = [];
 
-      print('getting planes: ${image.planes.length}');
-      for (var i = 0; i < image.planes.length; i++) {
-        print('in plane ${i + 1}');
+      for (var i = image.planes.length - 1; i >= 0; i--) {
         var plane = image.planes[i];
-        // print('We have bytes here: ${plane.bytes.toList()}');
         imageBytes.addAll(plane.bytes.toList());
       }
       // image.planes.map((plane) {
@@ -146,18 +148,33 @@ class _CameraScreenState extends State<CameraScreen> {
         print('TEST: ${test}');
 
         print("[STREAM] Analyzing...");
-        Pydroid.analyzeStream(res).then((value) {
-          // var totalTime = DateTime.now().difference(startTime).inMilliseconds;
-          // log("[Flutter] Received value '$value' in $totalTime milliseconds");
-          setState(() {
-            _face = value;
-            _path = res;
-            print('Set face to:');
-            print(value);
-            // facePainter!.face = value; // ***for hack
-            // _isComputationRunning = false; // unset blocker
+        if (!_started) {
+          Pydroid.analyzeStream(res, '').then((value) {
+            // var totalTime = DateTime.now().difference(startTime).inMilliseconds;
+            // log("[Flutter] Received value '$value' in $totalTime milliseconds");
+            setState(() {
+              _face = value;
+              _path = res;
+              print('Set face to:');
+              print(value);
+              // facePainter!.face = value; // ***for hack
+              // _isComputationRunning = false; // unset blocker
+            });
           });
-        });
+        } else {
+          Pydroid.analyzeStream(res, tracker_path).then((value) {
+            // var totalTime = DateTime.now().difference(startTime).inMilliseconds;
+            // log("[Flutter] Received value '$value' in $totalTime milliseconds");
+            setState(() {
+              _face = value;
+              _path = res;
+              print('Set face to:');
+              print(value);
+              // facePainter!.face = value; // ***for hack
+              // _isComputationRunning = false; // unset blocker
+            });
+          });
+        }
 
       }).catchError((err) => {
         print("error on save image file error: $err")
@@ -178,7 +195,7 @@ class _CameraScreenState extends State<CameraScreen> {
       // await Pydroid.analyzeStream(path);
     });
     setState(() {
-      _isStreaming = true;
+      _isStreaming = true;;
     });
   }
 

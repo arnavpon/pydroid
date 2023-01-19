@@ -1,0 +1,3 @@
+/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/.cxx/cmake/debug/armeabi-v7a/CMakeFiles/rebuild_cache.dir
+/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/.cxx/cmake/debug/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/.cxx/cmake/debug/armeabi-v7a/CMakeFiles/convertImage.dir
