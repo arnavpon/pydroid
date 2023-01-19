@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/src/camera_controller.dart';
-// import 'package:path_provider/path_provider.dart';
 import 'package:pydroid/pydroid.dart';
 import 'dart:io';
 import 'package:pydroid_example/face_detection/canvas.dart';
@@ -16,11 +15,12 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   late CameraController _controller;
   late List<CameraDescription> _cameras;
-  bool _isStreaming = false;
+
+  bool _streamingBegun = false;
+  bool _isProcessing = false;
 
   Rect _face = Rect.zero;
   Rect _forehead = Rect.zero;
-  bool _started = false;
   String _path = '';
   String tracker_path = 'tracker.sav';
   String hardcodedPath = '/data/user/0/com.jacobsonlab.pydroid_example/app_flutter/Pictures/flutter_test';
@@ -32,13 +32,12 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initializeCamera() async {
+    
     _cameras = await availableCameras();
-    _controller = CameraController(_cameras.last, ResolutionPreset.medium);//, imageFormatGroup: ImageFormatGroup.jpeg);
+    _controller = CameraController(_cameras.last, ResolutionPreset.medium);
 
     _controller.initialize().then((_) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {});
     });
   }
@@ -91,8 +90,8 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
           SizedBox(height: 10),
           TextButton(
-            child: Text(_isStreaming ? 'Stop Stream' : 'Start Stream'),
-            onPressed: _isStreaming ? _stopStream : _startStream,
+            child: Text(_streamingBegun ? 'Stop Stream' : 'Start Stream'),
+            onPressed: _streamingBegun ? _stopStream : _startStream,
           ),
         ],
       ),
@@ -100,34 +99,24 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<String> saveImageFile(imageBytes, count) async {
-    // final Directory extDir = await getApplicationDocumentsDirectory();
-    // final String dirPath = '${extDir.path}/Pictures/flutter_test';
-    // print('DDIDDIIDD');
-    // print(dirPath);
     await Directory(hardcodedPath).create(recursive: true);
     final String filePath = '${hardcodedPath}/${count}.png';
 
-    if (_controller.value.isTakingPicture) {
-      // A capture is already pending, do nothing.
-      return '';
-    }
+    // if a capture is already pending, do nothing
+    if (_controller.value.isTakingPicture) return '';
 
     try {
       File file = new File(filePath);
       file.writeAsBytes(imageBytes);
-      // print("finish image saved ${imageBytes}");
+      return filePath;
     } on CameraException catch (e) {
-      // _showCameraException(e);
       return '';
     }
-    return filePath;
   }
 
   Future<List<int>> convertImagetoPng(CameraImage image) async {
     try {
       late imglib.Image img;
-      print('the group is');
-      print(image.format.group);
       if (image.format.group == ImageFormatGroup.yuv420) {
         img = _convertYUV420(image);
       } else if (image.format.group == ImageFormatGroup.bgra8888) {
@@ -141,10 +130,11 @@ class _CameraScreenState extends State<CameraScreen> {
       // Convert to png
       List<int> png = pngEncoder.encodeImage(img);
       return png;
+    
     } catch (e) {
       print(">>>>>>>>>>>> ERROR:" + e.toString());
+      return [];
     }
-    return [];
   }
 
   // CameraImage BGRA8888 -> PNG
@@ -185,91 +175,42 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _startStream() async {
+    
+    // for having unique file names
     var count = 0;
+    
+    // start streaming images
     _controller.startImageStream((CameraImage image) async {
-      print('we start with');
-      print(image.format.group);
-      // print("img format: ${image.format} planes: ${image.planes}");
-      // List<int> imageBytes = [];
-
-      // for (var i = image.planes.length - 1; i >= 0; i--) {
-      //   var plane = image.planes[i];
-      //   imageBytes.addAll(plane.bytes.toList());
-      // }
-      // // image.planes.map((plane) {
-      // //   print('We have bytes here: ${plane.bytes.toList()}');
-      // //   imageBytes.addAll(plane.bytes.toList());
-      // // });
-      // print('got planes');
 
       List<int> imageBytes = await convertImagetoPng(image);
-      print('the bytes');
-      print(imageBytes);
       
       // call save image file method
       saveImageFile(imageBytes, count).then((res) async {
-        print("save image file successfull filepath: $res");
-
-        // print('loading test');
-        // var test = Image.file(File(res));
-        // print('TEST: ${test}');
-
-        print("[STREAM] Analyzing...");
-        if (!_started) {
-          Pydroid.analyzeStream(res, '').then((value) {
-            // var totalTime = DateTime.now().difference(startTime).inMilliseconds;
-            // log("[Flutter] Received value '$value' in $totalTime milliseconds");
-            setState(() {
-              _face = value;
-              _path = res;
-              print('Set face to:');
-              print(value);
-              // facePainter!.face = value; // ***for hack
-              // _isComputationRunning = false; // unset blocker
-            });
-          });
-        } else {
-          Pydroid.analyzeStream(res, tracker_path).then((value) {
-            // var totalTime = DateTime.now().difference(startTime).inMilliseconds;
-            // log("[Flutter] Received value '$value' in $totalTime milliseconds");
-            setState(() {
-              _face = value;
-              _path = res;
-              print('Set face to:');
-              print(value);
-              // facePainter!.face = value; // ***for hack
-              // _isComputationRunning = false; // unset blocker
-            });
-          });
-        }
-
-      }).catchError((err) => {
-        print("error on save image file error: $err")
+        final pathToPass = _streamingBegun ? tracker_path : '';
+        setState(() {
+          _isProcessing = true;
+        });
+        Pydroid.analyzeStream(res, pathToPass).then((value) {
+          _face = value;
+          _path = res;
+        });
       });
 
-      count += 1;
-
-      // Save the image to a file
-      // final directory = await getApplicationDocumentsDirectory();
-      // final path = '${directory.path}/image${counter}.jpg';
-      // final file = File(path);
-      // final bytes = image.planes.first.bytes;
-      // await file.writeAsBytes(bytes);
-      // counter += 1;
-      
-      // Pass the file path to the Python script
-      // print("[STREAM] Analyzing...");
-      // await Pydroid.analyzeStream(path);
+    }).catchError((err) => {
+      print("error on save image file error: $err")
     });
+
+    count += 1;
+
     setState(() {
-      _isStreaming = true;;
+      _streamingBegun = true;
     });
   }
 
   void _stopStream() {
     _controller.stopImageStream();
     setState(() {
-      _isStreaming = false;
+      _streamingBegun = false;
     });
   }
 }
