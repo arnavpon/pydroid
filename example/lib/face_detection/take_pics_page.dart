@@ -56,16 +56,20 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
       body: Column(
         children: <Widget>[
-          AspectRatio(
+          SizedBox(
+            width: 480,
+            height: 720,
+            child: AspectRatio(
             child: CustomPaint(
-              foregroundPainter: FacePainter(
-                context,
-                _face,
-                _forehead,
+                foregroundPainter: FacePainter(
+                  context,
+                  _face,
+                  _forehead,
+                ),
+                child: CameraPreview(_controller),
               ),
-              child: CameraPreview(_controller),
+              aspectRatio: _controller.value.aspectRatio,
             ),
-            aspectRatio: _controller.value.aspectRatio,
           ),
           // Container(
           //   child: CustomPaint(
