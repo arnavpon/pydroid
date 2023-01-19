@@ -6,6 +6,7 @@ import 'package:camera/src/camera_controller.dart';
 import 'package:pydroid/pydroid.dart';
 import 'dart:io';
 import 'package:pydroid_example/face_detection/canvas.dart';
+import 'package:image/image.dart' as imglib;
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -32,7 +33,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _initializeCamera() async {
     _cameras = await availableCameras();
-    _controller = CameraController(_cameras.last, ResolutionPreset.medium, imageFormatGroup: ImageFormatGroup.jpeg);
+    _controller = CameraController(_cameras.last, ResolutionPreset.medium);//, imageFormatGroup: ImageFormatGroup.jpeg);
 
     _controller.initialize().then((_) {
       if (!mounted) {
@@ -104,7 +105,7 @@ class _CameraScreenState extends State<CameraScreen> {
     // print('DDIDDIIDD');
     // print(dirPath);
     await Directory(hardcodedPath).create(recursive: true);
-    final String filePath = '${hardcodedPath}/${count}.jpg';
+    final String filePath = '${hardcodedPath}/${count}.png';
 
     if (_controller.value.isTakingPicture) {
       // A capture is already pending, do nothing.
@@ -122,30 +123,96 @@ class _CameraScreenState extends State<CameraScreen> {
     return filePath;
   }
 
+  Future<List<int>> convertImagetoPng(CameraImage image) async {
+    try {
+      late imglib.Image img;
+      print('the group is');
+      print(image.format.group);
+      if (image.format.group == ImageFormatGroup.yuv420) {
+        img = _convertYUV420(image);
+      } else if (image.format.group == ImageFormatGroup.bgra8888) {
+        img = _convertBGRA8888(image);
+      } else {
+        print('we ended up in here');
+      }
+
+      imglib.PngEncoder pngEncoder = new imglib.PngEncoder();
+
+      // Convert to png
+      List<int> png = pngEncoder.encodeImage(img);
+      return png;
+    } catch (e) {
+      print(">>>>>>>>>>>> ERROR:" + e.toString());
+    }
+    return [];
+  }
+
+  // CameraImage BGRA8888 -> PNG
+  // Color
+  imglib.Image _convertBGRA8888(CameraImage image) {
+    return imglib.Image.fromBytes(
+      image.width,
+      image.height,
+      image.planes[0].bytes,
+      format: imglib.Format.bgra,
+    );
+  }
+
+  // CameraImage YUV420_888 -> PNG -> Image (compresion:0, filter: none)
+  // Black
+  imglib.Image _convertYUV420(CameraImage image) {
+    var img = imglib.Image(image.width, image.height); // Create Image buffer
+
+    Plane plane = image.planes[0];
+    const int shift = (0xFF << 24);
+
+    // Fill image buffer with plane[0] from YUV420_888
+    for (int x = 0; x < image.width; x++) {
+      for (int planeOffset = 0;
+          planeOffset < image.height * image.width;
+          planeOffset += image.width) {
+        final pixelColor = plane.bytes[planeOffset + x];
+        // color: 0x FF  FF  FF  FF
+        //           A   B   G   R
+        // Calculate pixel color
+        var newVal = shift | (pixelColor << 16) | (pixelColor << 8) | pixelColor;
+
+        img.data[planeOffset + x] = newVal;
+      }
+    }
+
+    return img;
+  }
+
   void _startStream() async {
     var count = 0;
     _controller.startImageStream((CameraImage image) async {
+      print('we start with');
+      print(image.format.group);
+      // print("img format: ${image.format} planes: ${image.planes}");
+      // List<int> imageBytes = [];
 
-      print("img format: ${image.format} planes: ${image.planes}");
-      List<int> imageBytes = [];
-
-      for (var i = image.planes.length - 1; i >= 0; i--) {
-        var plane = image.planes[i];
-        imageBytes.addAll(plane.bytes.toList());
-      }
-      // image.planes.map((plane) {
-      //   print('We have bytes here: ${plane.bytes.toList()}');
+      // for (var i = image.planes.length - 1; i >= 0; i--) {
+      //   var plane = image.planes[i];
       //   imageBytes.addAll(plane.bytes.toList());
-      // });
-      print('got planes');
+      // }
+      // // image.planes.map((plane) {
+      // //   print('We have bytes here: ${plane.bytes.toList()}');
+      // //   imageBytes.addAll(plane.bytes.toList());
+      // // });
+      // print('got planes');
+
+      List<int> imageBytes = await convertImagetoPng(image);
+      print('the bytes');
+      print(imageBytes);
       
       // call save image file method
       saveImageFile(imageBytes, count).then((res) async {
         print("save image file successfull filepath: $res");
 
-        print('loading test');
-        var test = Image.file(File(res));
-        print('TEST: ${test}');
+        // print('loading test');
+        // var test = Image.file(File(res));
+        // print('TEST: ${test}');
 
         print("[STREAM] Analyzing...");
         if (!_started) {
