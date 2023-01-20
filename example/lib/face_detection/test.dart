@@ -92,7 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
           p2.value = _savedImage.planes[2].bytes.length;
           // Pointer<Uint8> p1 = allocate(count: _savedImage.planes[1].bytes.length);
           // Pointer<Uint8> p2 = allocate(count: _savedImage.planes[2].bytes.length);
-          
+          print('got here sam');
           // Assign the planes data to the pointers of the image
           Uint8List pointerList = p.asTypedList(_savedImage.planes[0].bytes.length);
           Uint8List pointerList1 = p1.asTypedList(_savedImage.planes[1].bytes.length);

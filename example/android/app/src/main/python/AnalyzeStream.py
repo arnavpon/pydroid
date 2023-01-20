@@ -17,6 +17,8 @@ def main(arguments):
     img = cv2.imread(img_path)
 
     print('in here')
+    print(f'im path is {os.path.exists(img_path)}')
+    print(img)
 
     # check if correlation tracker given
     tracker_path = arguments.get('tracker_path')

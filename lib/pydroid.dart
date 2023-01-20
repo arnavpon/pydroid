@@ -114,9 +114,11 @@ class Pydroid {
     print(result);
   }
 
-  static Future<Rect> analyzeStream(String path) async {
+  static Future<Rect> analyzeStream(String path, String tracker_path) async {
+
+    print('Executing...');
     final result = await executeInBackground(
-      'AnalyzeStream', {"img_path": path}
+      'AnalyzeStream', {"img_path": path, "tracker_path": tracker_path}
     );
 
     if (result[KEY_OUTPUT_ERROR] == null) {
