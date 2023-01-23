@@ -107,13 +107,23 @@ class Pydroid {
     }
   }
 
-  static Future<int> analyzeVideo(String videoPath) async {
+  static Future<Rect> analyzeVideo(String videoPath) async {
     final result = await executeInBackground(
         'VideoFaceDetection', {"vid_path": videoPath});
-    print("WE HAVE");
-    print(result);
-
-    return 1;
+    
+    if (result[KEY_OUTPUT_ERROR] == null) {
+      log("[dart] Converting object to rect...");
+      // convert successful result to expected format (bounding box)
+      Map<String, dynamic> value = result[KEY_OUTPUT_VALUE];
+      final topLeft = Offset(value["x1"] as double, value["y1"] as double);
+      final bottomRight = Offset(value["x2"] as double, value["y2"] as double);
+      final rect = Rect.fromPoints(topLeft, bottomRight);
+      log("Final rect: ${rect.toString()}");
+      return rect;
+    } else {
+      log("[dart] error returned");
+      return Rect.zero;
+    }
   }
 
   static Future<Rect> analyzeStream(String path, String tracker_path) async {
