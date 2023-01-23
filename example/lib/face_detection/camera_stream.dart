@@ -14,8 +14,10 @@ class VideoPage extends StatefulWidget {
 }
 
 class _VideoPageState extends State<VideoPage> {
+  
   bool _isLoading = true;
   bool _isRecording = false;
+  
   late CameraController _cameraController;
   
   @override
@@ -33,7 +35,7 @@ class _VideoPageState extends State<VideoPage> {
   _initCamera() async {
     final cameras = await availableCameras();
     final front = cameras.firstWhere((camera) => camera.lensDirection == CameraLensDirection.front);
-    _cameraController = CameraController(front, ResolutionPreset.max);
+    _cameraController = CameraController(front, ResolutionPreset.medium);
     await _cameraController.initialize();
     setState(() => _isLoading = false);
   }

@@ -370,6 +370,8 @@ def main(arguments):
     img = cv2.imread(image)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
+    print(f'Img starts at {img.shape}')
+
     # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
     img = (
         cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)

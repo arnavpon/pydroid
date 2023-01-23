@@ -107,11 +107,13 @@ class Pydroid {
     }
   }
 
-  static void analyzeVideo(String videoPath) async {
+  static Future<int> analyzeVideo(String videoPath) async {
     final result = await executeInBackground(
-        'GetHeartrate', {"vid_path": videoPath});
+        'VideoFaceDetection', {"vid_path": videoPath});
     print("WE HAVE");
     print(result);
+
+    return 1;
   }
 
   static Future<Rect> analyzeStream(String path, String tracker_path) async {
