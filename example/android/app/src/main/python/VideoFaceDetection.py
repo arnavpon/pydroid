@@ -33,7 +33,9 @@ def main(arguments):
         sam = np.swapaxes(np.copy(frame), 0, 1)
         print(f'new shape: {sam.shape}')
 
-        print(f'img is {img.shape}')
+        # print(f'img is {sam.shape}')
+        # sam = cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)
+        # print(f'and now it is {sam.shape}')
     
         imgProcessing = FacialImageProcessing(False)
         bounding_boxes, _ = imgProcessing.detect_faces(sam)
@@ -47,8 +49,9 @@ def main(arguments):
             bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
 
         # adjust y2 value so that box encloses just the user's forehead
-        bbox_dict['y2'] -= find_forehead(sam, bbox_dict)
+        #bbox_dict['y2'] -= find_forehead(sam, bbox_dict)
 
+        print(f'final bbox dict is: {bbox_dict}')
         return json.dumps(bbox_dict)  # returns value as JSON object
     
     else:

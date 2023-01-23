@@ -19,7 +19,7 @@ class _VideoPageState extends State<VideoPage> {
   bool _isLoading = true;
   bool _isRecording = false;
   bool _isRectangleVisible = true;
-  Rect _face = Rect.zero;
+  Map<String, dynamic> _face = {'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0};
   Rect _forehead = Rect.zero;
   
   late CameraController _cameraController;
@@ -53,6 +53,8 @@ class _VideoPageState extends State<VideoPage> {
           setState(() {
             _face = value;
           });
+          print('Face is now');
+          print(value);
         });
 
       // final route = MaterialPageRoute(
@@ -75,7 +77,7 @@ class _VideoPageState extends State<VideoPage> {
               children: [
                 CameraPreview(_cameraController),
                 cameraOverlay(
-                    padding: 50, aspectRatio: 1, color: Color(0x55000000)),
+                    face: _face, aspectRatio: 1, color: Colors.transparent),
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
@@ -89,47 +91,55 @@ class _VideoPageState extends State<VideoPage> {
               ]));
 }
 
-  Widget cameraOverlay({required double padding, required double aspectRatio, required Color color}) {
+  Widget cameraOverlay({required Map<String, dynamic> face, required double aspectRatio, required Color color}) {
       return LayoutBuilder(builder: (context, constraints) {
         double parentAspectRatio = constraints.maxWidth / constraints.maxHeight;
         double horizontalPadding;
         double verticalPadding;
 
-        if (parentAspectRatio < aspectRatio) {
-          horizontalPadding = padding;
-          verticalPadding = (constraints.maxHeight -
-                  ((constraints.maxWidth - 2 * padding) / aspectRatio)) /
-              2;
-        } else {
-          verticalPadding = padding;
-          horizontalPadding = (constraints.maxWidth -
-                  ((constraints.maxHeight - 2 * padding) * aspectRatio)) /
-              2;
-        }
+        // if (parentAspectRatio < aspectRatio) {
+        //   print('this aspect ration');
+        //   horizontalPadding = padding * 2;
+        //   verticalPadding = (constraints.maxHeight -
+        //           ((constraints.maxWidth - 2 * padding) / aspectRatio)) /
+        //       2;
+        // } else {
+        //   print('no this one');
+        //   verticalPadding = padding;
+        //   horizontalPadding = (constraints.maxWidth -
+        //           ((constraints.maxHeight - 2 * padding) * aspectRatio)) /
+        //       2;
+        // }
         return Stack(fit: StackFit.expand, children: [
-          Align(
-              alignment: Alignment.centerLeft,
-              child: Container(width: horizontalPadding, color: color)),
-          Align(
-              alignment: Alignment.centerRight,
-              child: Container(width: horizontalPadding, color: color)),
-          Align(
-              alignment: Alignment.topCenter,
-              child: Container(
-                  margin: EdgeInsets.only(
-                      left: horizontalPadding, right: horizontalPadding),
-                  height: verticalPadding,
-                  color: color)),
-          Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                  margin: EdgeInsets.only(
-                      left: horizontalPadding, right: horizontalPadding),
-                  height: verticalPadding,
-                  color: color)),
+          // Align(
+          //     // alignment: Alignment.centerLeft,
+          //     child: Container(width: horizontalPadding, color: color)),
+          // Align(
+          //     // alignment: Alignment.centerRight,
+          //     child: Container(width: horizontalPadding * 2, color: color)),
+          // Align(
+          //     // alignment: Alignment.topCenter,
+          //     child: Container(
+          //         margin: EdgeInsets.only(
+          //             left: horizontalPadding, right: horizontalPadding),
+          //         height: verticalPadding,
+          //         color: color)),
+          // Align(
+          //     // alignment: Alignment.bottomCenter,
+          //     child: Container(
+          //         margin: EdgeInsets.only(
+          //             left: horizontalPadding, right: horizontalPadding),
+          //         height: verticalPadding,
+          //         color: color)),
           Container(
-            margin: EdgeInsets.symmetric(
-                horizontal: horizontalPadding, vertical: verticalPadding),
+            // margin: EdgeInsets.symmetric(
+            //     horizontal: horizontalPadding, vertical: verticalPadding),
+            margin: EdgeInsets.only(
+              left: face['x1'].toDouble(),
+              right: (MediaQuery.of(context).size.width - face['x2']).toDouble(),
+              top: face['y1'].toDouble(),
+              bottom: face['y2'].toDouble()
+            ),
             decoration: BoxDecoration(border: Border.all(color: Colors.cyan)),
           )
         ]);
