@@ -32,3 +32,6 @@ flutter:
         pluginClass: PydroidPlugin
       ios:
         pluginClass: PydroidPlugin
+  
+  assets:
+    - assets/
