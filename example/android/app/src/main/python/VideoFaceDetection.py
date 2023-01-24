@@ -25,35 +25,35 @@ def main(arguments):
 
     success, frame = vid.read()
 
-    if success:
+    # initialize bbox_dict to failure state
+    bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
+
+    # loop through the frames until a face is found
+    while success:
         
         img = np.copy(frame)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        sam = np.swapaxes(np.copy(frame), 0, 1)
-        print(f'new shape: {sam.shape}')
-
-        # print(f'img is {sam.shape}')
-        # sam = cv2.resize(img, (int(TAKEN_W), int(TAKEN_H)), interpolation = cv2.INTER_AREA)
-        # print(f'and now it is {sam.shape}')
+        img = np.swapaxes(img, 0, 1)
     
         imgProcessing = FacialImageProcessing(False)
-        bounding_boxes, _ = imgProcessing.detect_faces(sam)
+        bounding_boxes, _ = imgProcessing.detect_faces(img)
 
         if len(bounding_boxes) > 0:
-            bbox=bounding_boxes[0]
+            
+            bbox = bounding_boxes[0]
             bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
-            print("Bounding Boxes: {0}".format(bbox_dict))
+            print(f'Bounding Boxes: {bbox_dict}')
+
+            # adjust y2 value so that box encloses just the user's forehead
+            #bbox_dict['y2'] -= find_forehead(img, bbox_dict)
+
+            return json.dumps(bbox_dict)
+        
         else:
-            print("No face detected!")
+            print('No face detected!')
             bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
 
-        # adjust y2 value so that box encloses just the user's forehead
-        #bbox_dict['y2'] -= find_forehead(sam, bbox_dict)
+            success, frame = vid.read()
 
-        print(f'final bbox dict is: {bbox_dict}')
-        return json.dumps(bbox_dict)  # returns value as JSON object
-    
-    else:
-        print('Couldnt even read the frame')
-        return json.dumps({'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0})
+    print('Went through each frame so returning failure')
+    return bbox_dict
