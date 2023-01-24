@@ -71,17 +71,58 @@ class _CameraPageState extends State<CameraPage> {
       return Center(
         child: Stack(
           alignment: Alignment.bottomCenter,
-          children: [
-            CameraPreview(_cameraController),
-            Padding(
-              padding: const EdgeInsets.all(25),
-              child: FloatingActionButton(
-                backgroundColor: Colors.red,
-                child: Icon(_isRecording ? Icons.stop : Icons.circle),
-                onPressed: () => _recordVideo(),
-              ),
-            ),
-          ],
+          child: CustomPaint(
+            foregroundPainter: FacePainter(
+              context,
+              _face,
+              _forehead,
+            ), // get reference to facePainter so we can update the image object ***hack,
+            child: CameraPreview(_cameraController),
+            // child: const SizedBox.shrink(),
+          ),
+          // children: [
+          //   CameraPreview(_cameraController),
+          //   // Padding(
+          //   //   padding: const EdgeInsets.all(25),
+          //   //   child: FloatingActionButton(
+          //   //     backgroundColor: Colors.red,
+          //   //     child: Icon(_isRecording ? Icons.stop : Icons.circle),
+          //   //     onPressed: () => _recordVideo(),
+          //   //   ),
+          //   // ),
+          //   Positioned(
+          //     left: _position['x'],
+          //     top: _position['y'],
+          //     child: InkWell(
+          //       onTap: () {
+          //         // When the user taps on the rectangle, it will disappear
+          //         setState(() {
+          //           _isRectangleVisible = false;
+          //         });
+          //       },
+          //       child: Container(
+          //         width: _position['w'],
+          //         height: _position['h'],
+          //         decoration: BoxDecoration(
+          //           border: Border.all(
+          //             width: 2,
+          //             color: Colors.blue,
+          //           ),
+          //         ),
+          //         child: Align(
+          //           alignment: Alignment.topLeft,
+          //           child: Container(
+          //             color: Colors.blue,
+          //             child: Text(
+          //               'hourse -71%',
+          //               style: TextStyle(color: Colors.white),
+          //             ),
+          //           ),
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ],
         ),
       );
     }

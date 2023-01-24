@@ -30,6 +30,8 @@ class _VideoPageState extends State<VideoPage> {
   }
 
   void _callPydroid() async {
+    print('filepath is');
+    print(widget.filePath);
     Pydroid.analyzeVideo(widget.filePath);
   }
 

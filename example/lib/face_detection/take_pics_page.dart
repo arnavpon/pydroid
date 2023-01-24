@@ -191,8 +191,10 @@ class _CameraScreenState extends State<CameraScreen> {
           _isProcessing = true;
         });
         Pydroid.analyzeStream(res, pathToPass).then((value) {
-          _face = value;
-          _path = res;
+          setState(() {
+            _face = value;
+            _path = res;
+          });
         });
       });
 
