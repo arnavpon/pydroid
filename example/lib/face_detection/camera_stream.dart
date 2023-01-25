@@ -20,7 +20,7 @@ class _VideoPageState extends State<VideoPage> {
   bool _isRecording = false;
 
   // initialize face box to a box with no area
-  Map<String, dynamic> _face = {'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0};
+  List<dynamic> _faces = [{'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0}];
   
   // CameraController initialized later
   late CameraController _cameraController;
@@ -64,7 +64,7 @@ class _VideoPageState extends State<VideoPage> {
       // NOTE: For now, this is just getting the bounding box for the first
       //      frame and overlaying just that box onto the camera preview
       final value = await Pydroid.analyzeVideo(file.path);
-      setState(() => _face = value[0]);
+      setState(() => _faces = value);
 
     // otherwise we start recording
     } else { 
@@ -84,9 +84,19 @@ class _VideoPageState extends State<VideoPage> {
         children: [
           CameraPreview(_cameraController),
           cameraOverlay(
-            face: _face,
+            face: _faces[0],
             aspectRatio: 1,
-            color: Colors.transparent
+            color: Colors.cyan
+          ),
+          if (_faces.length > 1) cameraOverlay(
+            face: _faces[1],
+            aspectRatio: 1,
+            color: Colors.red
+          ),
+          if (_faces.length > 2) cameraOverlay(
+            face: _faces[2],
+            aspectRatio: 1,
+            color: Colors.green
           ),
           Align(
             alignment: Alignment.bottomCenter,
@@ -116,7 +126,7 @@ class _VideoPageState extends State<VideoPage> {
               top: face['y1'].toDouble(),
               bottom: face['y2'].toDouble()
             ),
-            decoration: BoxDecoration(border: Border.all(color: Colors.cyan)),
+            decoration: BoxDecoration(border: Border.all(color: color)),
           )
         ]
       );
