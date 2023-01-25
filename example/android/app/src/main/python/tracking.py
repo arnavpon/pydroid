@@ -12,7 +12,7 @@ from FaceDetection_MT1 import (
     IMG_THRESH
 )
 
-DEFAULT_ROI_PERCENTAGE = 0.6
+DEFAULT_ROI_PERCENTAGE = 0.8
 DEFAULT_CSV_NAME = './channels.csv'
 
 def track_image(img, tracker):
