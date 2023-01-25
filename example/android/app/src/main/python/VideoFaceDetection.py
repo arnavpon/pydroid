@@ -58,7 +58,7 @@ def main(arguments):
     
     if not found_face:
         print(f'No frames found in {nframes} frames')
-        return {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
+        return json.dumps({'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0})
     
 
     # init array to track all bounding bounding boxes
@@ -86,7 +86,7 @@ def main(arguments):
         success, frame = vid.read()
     
     print(f'Returning {len(boxes)} boxes out of {nframes} frames')
-    return boxes
+    return json.dumps(boxes)
 
 
 def _process_img(frame):
