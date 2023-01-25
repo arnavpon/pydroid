@@ -52,3 +52,5 @@ shape_predictor_68_face_landmarks.dat
 *.mp4
 
 lib/YUV_2_RGB/
+
+*channels.csv
