@@ -113,32 +113,12 @@ class Pydroid {
     
     if (result[KEY_OUTPUT_ERROR] == null) {
       List<dynamic> value = result[KEY_OUTPUT_VALUE];
-      print('Received list of length');
-      print(value.length);
-      print('======');
       return value;
     } else {
       log("[dart] error returned");
       return [{}];
     }
   }
-
-    // static Future<Map<String, dynamic>> analyzeVideo(String videoPath) async {
-    //   final result = await executeInBackground(
-    //       'FaceDetectionBasic', {"vid_path": videoPath});
-      
-    //   if (result[KEY_OUTPUT_ERROR] == null) {
-    //     final value = result[KEY_OUTPUT_VALUE];
-    //     print('Received list of length');
-    //     print(value.runtimeType);
-    //     print(value.length);
-    //     print('======');
-    //     return value;
-    //   } else {
-    //     log("[dart] error returned");
-    //     return {};
-    //   }
-    // }
 
   static Future<Rect> analyzeStream(String path, String tracker_path) async {
 
