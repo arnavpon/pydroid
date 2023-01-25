@@ -64,7 +64,7 @@ class _VideoPageState extends State<VideoPage> {
       // NOTE: For now, this is just getting the bounding box for the first
       //      frame and overlaying just that box onto the camera preview
       final value = await Pydroid.analyzeVideo(file.path);
-      setState(() => _face = value);
+      setState(() => _face = value[0]);
 
     // otherwise we start recording
     } else { 
