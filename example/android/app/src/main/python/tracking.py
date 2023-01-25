@@ -2,6 +2,7 @@ import cv2
 import dlib
 import numpy as np
 import pickle
+import pandas as pd
 
 from forehead import find_forehead
 from FaceDetection_MT1 import (
@@ -10,6 +11,9 @@ from FaceDetection_MT1 import (
     LOADED_W, LOADED_H,
     IMG_THRESH
 )
+
+DEFAULT_ROI_PERCENTAGE = 0.6
+DEFAULT_CSV_NAME = './channels.csv'
 
 def track_image(img, tracker):
 
@@ -68,6 +72,9 @@ def track_video(video_path = None):
     # display the first frame
     _display_frame(frame, bbox)
 
+    # init dict to track spatial average of face ROI for each color channel
+    channel_data = {'r': [], 'g': [], 'b': []}
+
     while success:
         
         # read the next frame
@@ -76,7 +83,7 @@ def track_video(video_path = None):
         if success:
 
             # get new bbox for the current frame
-            curr_img = _track(frame, tracker, resize_img)
+            curr_img = _track(frame, tracker, channel_data, resize_img)
 
             # display current frame
             _display_frame(curr_img)
@@ -84,10 +91,11 @@ def track_video(video_path = None):
             if cv2.waitKey(10) == 27:
                 break
     
+    pd.DataFrame(data = channel_data).to_csv(DEFAULT_CSV_NAME, index = False)
     video.release()
 
 
-def _track(frame, tracker, resize_img):
+def _track(frame, tracker, channel_data, resize_img):
 
     img = _process_img(frame, resize = resize_img)
 
@@ -103,6 +111,11 @@ def _track(frame, tracker, resize_img):
     start_y = int(pos.top())
     end_x = int(pos.right())
     end_y = int(pos.bottom())
+
+    bbox = {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}
+    _collect_channel_data(channel_data, img, bbox)
+
+    #start_x, end_x, start_y, end_y = _get_cropped_channels(img, {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}, DEFAULT_ROI_PERCENTAGE)
 
     # draw new rectangle on the img
     cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
@@ -132,6 +145,37 @@ def _track_img(frame, tracker, tracker_path, resize_img):
         'x2': int(pos.right()),
         'y2': int(pos.bottom())
     }
+
+def _collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_PERCENTAGE):
+    """
+    Populate the given dictionary by appending a spatial average for each channel
+    within a percentage of the ROI found for the face. The reason for collecting a percentage
+    as sometimes the outer portions of the ROI contain hair, eyebrows, etc.
+    """
+
+    # get channels from image which is cropped by the bbox produced which is shrunk by 1 - roi_percentage
+    rc, gc, bc = _get_cropped_channels(img, bbox, roi_percentage)
+
+    # for each channel, append its mean to the channel dict
+    channel_data['r'].append(np.mean(rc))
+    channel_data['g'].append(np.mean(gc))
+    channel_data['b'].append(np.mean(bc))
+
+def _get_cropped_channels(img, bbox, roi_percentage):
+
+    roi_width = bbox['x2'] - bbox['x1']
+    roi_height = bbox['y2'] - bbox['y1']
+
+    xi = int(bbox['x1'] + ((roi_width * (1 - roi_percentage)) / 2))
+    xw = int(roi_width * roi_percentage)
+    # xii = xi + xw
+    yi = int(bbox['y1'] + ((roi_height * (1 - roi_percentage)) / 2))
+    yh = int(roi_height * roi_percentage)
+    # yii = yi + yw
+
+    # crop the image and split by channel
+    cropped_img = img[yi: yi + yh, xi: xi + xw]
+    return cv2.split(cropped_img)
 
 def _find_forehead(img, resize = False):
 
