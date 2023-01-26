@@ -32,6 +32,10 @@ def detrend(channel, smoothing_param = 10):
     Given color channel vector, apply detrending as described in 
     "An Advanced Detrending Method With Application to HRV Analysis"
     """
+
+    # make sure the channel is a np array
+    if not isinstance(channel, np.array):
+        channel = np.array(channel)
     
     # get length of the vector
     T = len(channel)
@@ -49,3 +53,21 @@ def detrend(channel, smoothing_param = 10):
     )
 
     return z_stat
+
+    
+def normalize_detrended(detrended_channel):
+    """
+    Input is detrended channel from the detrend method. This method implements
+    formula 3 in "Advancements in Noncontact, Multiparameter Physiological
+    Measurements Using a Webcam"
+    """
+
+    # make sure the channel is a np array
+    if not isinstance(detrended_channel, np.array):
+        detrended_channel = np.array(detrended_channel)
+
+    # get mean and standard dev of the channel
+    mn = np.mean(detrended_channel)
+    std = np.std(detrended_channel)
+
+    return (detrended_channel - mn) / std
