@@ -54,3 +54,4 @@ shape_predictor_68_face_landmarks.dat
 lib/YUV_2_RGB/
 
 *channels.csv
+android/app/src/main/python/jadeR.py
