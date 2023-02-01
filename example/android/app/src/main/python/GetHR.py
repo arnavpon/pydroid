@@ -5,12 +5,18 @@ derived from a face video.
 
 import numpy as np
 import pandas as pd
+from scipy.signal import welch
 from scipy.sparse import diags
 
+from jadeR import jadeR
+from ica import ica, jade
 from tracking import DEFAULT_CSV_NAME
 
 
 def load_channels(path = DEFAULT_CSV_NAME):
+    """
+    Step 1: Load ROI channel vectors from local csv file.
+    """
     
     channels = pd.read_csv(path)
     if (
@@ -29,7 +35,7 @@ def load_channels(path = DEFAULT_CSV_NAME):
 
 def detrend(channel, smoothing_param = 10):
     """
-    Given color channel vector, apply detrending as described in 
+    Step 2: Given a color channel vector, apply detrending as described in 
     "An Advanced Detrending Method With Application to HRV Analysis"
     """
 
@@ -57,9 +63,9 @@ def detrend(channel, smoothing_param = 10):
     
 def normalize_detrended(detrended_channel):
     """
-    Input is detrended channel from the detrend method. This method implements
+    Step 3: Input is detrended channel from step 2. This method implements
     formula 3 in "Advancements in Noncontact, Multiparameter Physiological
-    Measurements Using a Webcam"
+    Measurements Using a Webcam".
     """
 
     # make sure the channel is a np array
@@ -71,3 +77,25 @@ def normalize_detrended(detrended_channel):
     std = np.std(detrended_channel)
 
     return (detrended_channel - mn) / std
+
+
+def jade(channels, desired_out = 3):
+    X = np.array([channels['r'], channels['g'], channels['b']])
+    return jadeR(X, m = desired_out)
+
+def get_bvp_w_ica(X, ica_method = ica):
+
+    components = ica_method(X)
+
+    power_spectra = []
+    for comp in components:
+        f, Pxx = welch(comp, fs = 1000)
+        power_spectra.append(Pxx)
+
+    bvp_index = np.argmax([np.max(ps) for ps in power_spectra])
+    return components[bvp_index]
+
+if __name__ == '__main__':
+
+    channels = load_channels()
+    print(jade(channels))
