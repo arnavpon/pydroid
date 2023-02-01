@@ -14,7 +14,8 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 # load video locally for testing
-vid = cv2.VideoCapture('PXL_20220724_101216902.mp4')
+# vid = cv2.VideoCapture('PXL_20220724_101216902.mp4')
+vid = cv2.VideoCapture('Movie on 1-25-23 at 3.01 PM.mp4')
 
 def _get_translation(shape, first_frame_locs):
 
