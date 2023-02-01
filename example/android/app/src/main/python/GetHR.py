@@ -9,7 +9,7 @@ from scipy.signal import welch
 from scipy.sparse import diags
 
 from jadeR import jadeR
-from ica import ica, jade
+from ica import vanilla_ica, jade
 from tracking import DEFAULT_CSV_NAME
 
 
@@ -79,19 +79,21 @@ def normalize_detrended(detrended_channel):
     return (detrended_channel - mn) / std
 
 
-def jade(channels, desired_out = 3):
-    X = np.array([channels['r'], channels['g'], channels['b']])
-    return jadeR(X, m = desired_out)
+def get_bvp_w_ica(X, ica_method = vanilla_ica):
+    """
+    
+    """
 
-def get_bvp_w_ica(X, ica_method = ica):
-
+    # decompose normalized raw traces
     components = ica_method(X)
-
+    
+    # collect power spectra from each component
     power_spectra = []
     for comp in components:
-        f, Pxx = welch(comp, fs = 1000)
+        _, Pxx = welch(comp, fs = 1000)
         power_spectra.append(Pxx)
 
+    # return the component w the largest peak power spectra
     bvp_index = np.argmax([np.max(ps) for ps in power_spectra])
     return components[bvp_index]
 
