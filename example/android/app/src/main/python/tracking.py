@@ -3,6 +3,7 @@ import dlib
 import numpy as np
 import pickle
 import pandas as pd
+import os
 
 from forehead import find_forehead
 from FaceDetection_MT1 import (
@@ -12,7 +13,7 @@ from FaceDetection_MT1 import (
     IMG_THRESH
 )
 
-DEFAULT_ROI_PERCENTAGE = 0.8
+DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
 
 def track_image(img, tracker):
@@ -51,7 +52,7 @@ def track_video(video_path = None):
 
     # load video with cv2
     if video_path is None:
-        video = cv2.VideoCapture(0) # this is the magic!
+        video = cv2.VideoCapture(0)
     else:
         video = cv2.VideoCapture(video_path)
     
@@ -232,5 +233,6 @@ def _display_frame(img, bbox = None):
 
 
 if __name__ == '__main__':
-    track_video('./PXL_20220724_101216902.mp4')
+    # track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/Movie on 2-2-23 at 3.31 PM.mp4')
     # track_video()
+    track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/PXL_20230202_212010481.mp4')
