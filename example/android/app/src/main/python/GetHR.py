@@ -119,6 +119,9 @@ def bandpass(arr, hamming_window, freq_range):
     # use short-time Fourier transform (STFT) on the arr
     # with hamming window of given size to get the frequency, time, and STFT results
     f, t, Zxx = stft(arr, window = window, nperseg = hamming_window)
+    # print('sam', Zxx.shape)
+    # plt.plot(Zxx)
+    # plt.show()
 
     # copy the STFT results
     Zxx_filtered = np.copy(Zxx)
@@ -132,8 +135,10 @@ def bandpass(arr, hamming_window, freq_range):
             # check if the freq is outside the given freq range, 
             # and set corresponding Zxx copy index to 0 if so
             abs_fj = abs(f[j])
+            print(freq_range, abs_fj)
             if abs_fj < freq_range[0] or abs_fj > freq_range[1]:
                 Zxx_filtered[j][i] = 0
+            else: print('escaped', abs_fj)
 
     # use inverse STFT to obtain the filtered signal
     _, arr_filtered = istft(Zxx_filtered, window = window, nperseg = hamming_window)
@@ -194,11 +199,6 @@ def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade):
     # Step 1: load the spatially averaged color channels from the video
     channels = load_channels(path = DEFAULT_CSV_NAME)
 
-    t1 = np.copy(channels['r'])
-    t2 = np.copy(channels['g'])
-    t3 = np.copy(channels['b'])
-
-
     # Step 2: Detrend each channel individually
     channels = {
         'r': detrend(channels['r']),
@@ -219,22 +219,30 @@ def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade):
         ica_method = ica_method
     )
 
-    # # Step 5: Apply 5-point moving average filter to the peak comp
-    # fcomp = n_moving_avg(peak_comp)
+    # Step 5: Apply 5-point moving average filter to the peak comp
+    fcomp = n_moving_avg(peak_comp)[5: ]
 
-    # # Step 6: Apply bandpass filter to the component
+    # Step 6: Apply bandpass filter to the component
+    # print(len(fcomp))
     # fcomp = bandpass(fcomp, 128, (0.7, 4))
 
+    # print(fcomp)
+    # plt.plot(fcomp)
+    # plt.show()
+
     # # Step 7: Interpolate signal w/ cubic spline function
-    # icomp = cubic_spline_interpolation(fcomp)
+    icomp = cubic_spline_interpolation(fcomp)
 
     # # Step 8: Compute IBIs
-    # ibis = get_ibis_w_bvp_peak_detection(icomp)
+    ibis = get_ibis_w_bvp_peak_detection(icomp)
+    print(len(ibis))
+    plt.plot(ibis)
+    plt.show()
 
     # # Step 9: Return HR
-    # return get_hr(ibis)
+    return get_hr(ibis)
 
 
 if __name__ == '__main__':
 
-    pipeline()
+    print('HR is', pipeline())
