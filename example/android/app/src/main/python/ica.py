@@ -1,7 +1,10 @@
 import numpy as np
 np.random.seed(0)
 
-def vanilla_ica(X, iterations, tolerance = 1e-5):
+def vanilla_ica(X, iterations = 1000, tolerance = 1e-5):
+    """
+    https://towardsdatascience.com/independent-component-analysis-ica-in-python-a0ef0db0955e
+    """
     
     # center and whiten component matrix
     components = _center(X)
@@ -46,7 +49,12 @@ def _whiten(X):
     cov = np.cov(X)
     d, E = np.linalg.eigh(cov)
     D = np.diag(d)
-    D_inv = np.sqrt(np.linalg.inv(D))
+
+    inv = np.linalg.inv(D)
+    eigenvalues, eigenvectors = np.linalg.eig(inv)
+    D_inv = np.dot(eigenvectors, np.dot(np.diag(np.sqrt(eigenvalues)), np.linalg.inv(eigenvectors)))
+
+
     X_whiten = np.dot(E, np.dot(D_inv, np.dot(E.T, X)))
     return X_whiten
 
@@ -59,18 +67,21 @@ def _calculate_new_w(w, X):
 def jade(X):
 
     m, n = X.shape
-    W = np.eye(n)
+    W = np.eye(m)
 
-    for i in range(m - 1):
-        for j in range(i + 1, m):
+    for i in range(n - 1):
+        for j in range(i + 1, n):
             
             # compute the Givens rotation
-            x1, x2 = X[i, :], X[j, :]
-            G = np.eye(n)
+            x1, x2 = X[:, i], X[:, j]
+            G = np.eye(m)
             d = np.sqrt(x1.dot(x1) + x2.dot(x2))
             c = x1.dot(x2) / d
-            s = np.sqrt(1 - c**2)
-            G[[i, j], [i, j]] = c
+            
+            c_res = 1 - c**2
+            s = np.sqrt(c_res) if c_res > 0 else 0
+            
+            G[i, i], G[j, j] = c, c
             G[i, j] = s
             G[j, i] = -s
 
@@ -78,4 +89,4 @@ def jade(X):
             X = G.dot(X)
             W = W.dot(G.T)
 
-    return W
+    return W.dot(X)

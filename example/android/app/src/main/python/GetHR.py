@@ -13,6 +13,8 @@ from jadeR import jadeR
 from ica import vanilla_ica, jade
 from tracking import DEFAULT_CSV_NAME
 
+import matplotlib.pyplot as plt
+
 
 def load_channels(path = DEFAULT_CSV_NAME):
     """
@@ -41,7 +43,7 @@ def detrend(channel, smoothing_param = 10):
     """
 
     # make sure the channel is a np array
-    if not isinstance(channel, np.array):
+    if not isinstance(channel, np.ndarray):
         channel = np.array(channel)
     
     # get length of the vector
@@ -70,7 +72,7 @@ def normalize_detrended(detrended_channel):
     """
 
     # make sure the channel is a np array
-    if not isinstance(detrended_channel, np.array):
+    if not isinstance(detrended_channel, np.ndarray):
         detrended_channel = np.array(detrended_channel)
 
     # get mean and standard dev of the channel
@@ -84,7 +86,7 @@ def get_bvp_w_ica(X, ica_method = jade):
 
     # decompose normalized raw traces
     components = ica_method(X)
-    
+
     # collect power spectra from each component
     power_spectra = []
     for comp in components:
@@ -93,7 +95,7 @@ def get_bvp_w_ica(X, ica_method = jade):
 
     # return the component w the largest peak power spectra
     bvp_index = np.argmax([np.max(ps) for ps in power_spectra])
-    return components[bvp_index]
+    return components[:, bvp_index]
 
 
 def n_moving_avg(arr, window = 5):
@@ -191,27 +193,31 @@ def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade):
 
     # Step 1: load the spatially averaged color channels from the video
     channels = load_channels(path = DEFAULT_CSV_NAME)
-    print(channels)
 
-    # # Step 2: Detrend each channel individually
-    # channels = {
-    #     'r': detrend(channels['r']),
-    #     'g': detrend(channels['g']),
-    #     'b': detrend(channels['b'])
-    # }
+    t1 = np.copy(channels['r'])
+    t2 = np.copy(channels['g'])
+    t3 = np.copy(channels['b'])
 
-    # # Step 3: Normalize detrended channels one by one
-    # channels = {
-    #     'r': normalize_detrended(channels['r']),
-    #     'g': normalize_detrended(channels['g']),
-    #     'b': normalize_detrended(channels['b'])
-    # }
 
-    # # Step 4: Apply ICA and get component with highest spectrum peak
-    # peak_comp = get_bvp_w_ica(
-    #     np.stack([channels['r'], channels['g'], channels['b']], axis = 1),
-    #     ica_method = ica_method
-    # )
+    # Step 2: Detrend each channel individually
+    channels = {
+        'r': detrend(channels['r']),
+        'g': detrend(channels['g']),
+        'b': detrend(channels['b'])
+    }
+
+    # Step 3: Normalize detrended channels one by one
+    channels = {
+        'r': normalize_detrended(channels['r']),
+        'g': normalize_detrended(channels['g']),
+        'b': normalize_detrended(channels['b'])
+    }
+
+    # Step 4: Apply ICA and get component with highest spectrum peak
+    peak_comp = get_bvp_w_ica(
+        np.stack([channels['r'], channels['g'], channels['b']], axis = 1),
+        ica_method = ica_method
+    )
 
     # # Step 5: Apply 5-point moving average filter to the peak comp
     # fcomp = n_moving_avg(peak_comp)
@@ -231,5 +237,4 @@ def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade):
 
 if __name__ == '__main__':
 
-    channels = load_channels()
-    print(jade(channels))
+    pipeline()
