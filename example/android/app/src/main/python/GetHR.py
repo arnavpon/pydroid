@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSpline as Spline
-from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks
+from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks, lfilter
 from scipy.sparse import diags
 
 from ica import jade_v4
@@ -140,6 +140,7 @@ def get_bvp_w_ica(X, ica_method = jade_v4):
 
 # ======= End ICA =======
 
+# ======= Filtering =======
 
 def n_moving_avg(arr, window = 5):
     """
@@ -153,62 +154,99 @@ def n_moving_avg(arr, window = 5):
     
     return result
 
+def bandpass(data, lowcut, highcut, fs = 30, order = 5):
+    b, a = _bandpass_helper(lowcut, highcut, fs, order = order)
+    y = lfilter(b, a, data)
+    return y
 
-def bandpass(arr, hamming_window, freq_range):
+def _bandpass_helper(lowcut, highcut, fs, order=5):
+    return butter(order, [lowcut, highcut], fs = fs, btype='band')
 
-    # Generate a Hamming window of the specified size
-    window = windows.hann(hamming_window)
 
-    # use short-time Fourier transform (STFT) on the arr
-    # with hamming window of given size to get the frequency, time, and STFT results
-    f, t, Zxx = stft(arr, window = window, nperseg = hamming_window)
-    # print('sam', Zxx.shape)
-    # plt.plot(Zxx)
-    # plt.show()
+# ======= End Filtering =======
 
-    # copy the STFT results
-    Zxx_filtered = np.copy(Zxx)
 
-    # iterate over each time step in the STFT results
-    for i in range(Zxx.shape[1]):
+# def bandpass(arr, hamming_window, freq_range):
+
+#     # Generate a Hamming window of the specified size
+#     window = windows.hann(hamming_window)
+
+#     # use short-time Fourier transform (STFT) on the arr
+#     # with hamming window of given size to get the frequency, time, and STFT results
+#     f, t, Zxx = stft(arr, window = window, nperseg = hamming_window)
+#     # print('sam', Zxx.shape)
+#     # plt.plot(Zxx)
+#     # plt.show()
+
+#     # copy the STFT results
+#     Zxx_filtered = np.copy(Zxx)
+
+#     # iterate over each time step in the STFT results
+#     for i in range(Zxx.shape[1]):
         
-        # iterate over each freq in the STFT results
-        for j in range(Zxx.shape[0]):
+#         # iterate over each freq in the STFT results
+#         for j in range(Zxx.shape[0]):
             
-            # check if the freq is outside the given freq range, 
-            # and set corresponding Zxx copy index to 0 if so
-            abs_fj = abs(f[j])
-            print(freq_range, abs_fj)
-            if abs_fj < freq_range[0] or abs_fj > freq_range[1]:
-                Zxx_filtered[j][i] = 0
-            else: print('escaped', abs_fj)
+#             # check if the freq is outside the given freq range, 
+#             # and set corresponding Zxx copy index to 0 if so
+#             abs_fj = abs(f[j])
+#             print(freq_range, abs_fj)
+#             if abs_fj < freq_range[0] or abs_fj > freq_range[1]:
+#                 Zxx_filtered[j][i] = 0
+#             else: print('escaped', abs_fj)
 
-    # use inverse STFT to obtain the filtered signal
-    _, arr_filtered = istft(Zxx_filtered, window = window, nperseg = hamming_window)
-    return arr_filtered
+#     # use inverse STFT to obtain the filtered signal
+#     _, arr_filtered = istft(Zxx_filtered, window = window, nperseg = hamming_window)
+#     return arr_filtered
 
 
-def bandpass_filter(arr, low, high, fs=30, order=128):
-    nyquist = fs / 2
-    low = low / nyquist
-    high = high / nyquist
+# def bandpass_filter(arr, low, high, fs=30, order=128):
+#     nyquist = fs / 2
+#     low = low / nyquist
+#     high = high / nyquist
 
-    b, a = butter(order, [low, high], btype='band')
-    window = hamming(order + 1)
-    filtered = filtfilt(b, a, arr * window)
-    return filtered
+#     b, a = butter(order, [low, high], btype='band')
+#     window = hamming(order + 1)
+#     filtered = filtfilt(b, a, arr * window)
+#     return filtered
 
-def bpf(data, low, high, fs=30, order=3):
-    nyquist = fs / 2
-    low = low / nyquist
-    high = high / nyquist
-    b, a = butter(order, [low, high], btype='band')
-    window = hamming(128)
-    filtered = np.zeros(len(data))
-    for i in range(0, len(data) - 128, 64):
-        segment = data[i:i + 128]
-        filtered[i:i + 128] = filtfilt(b, a, segment * window)
-    return filtered
+# def bpf(data, low, high, fs=30, order=3):
+#     nyquist = fs / 2
+#     low = low / nyquist
+#     high = high / nyquist
+#     b, a = butter(order, [low, high], btype='band')
+#     window = hamming(128)
+#     filtered = np.zeros(len(data))
+#     for i in range(0, len(data) - 128, 64):
+#         segment = data[i:i + 128]
+#         filtered[i:i + 128] = filtfilt(b, a, segment * window)
+#     return filtered
+
+# ======= Peak Detection =======
+
+def get_peaks(arr, fr = 30, thresh = 0.5, min_accepted_hr = 20, max_accepted_hr = 120):
+    """
+    Step 6: Peak detection. Add a min distance between peaks based
+    on reasonable assumptions about the possible range of heart rates.
+    I'm assuming the min reasonable heart rate is 20 and the max is 200.
+    The amount of frames per beat is fr*60/HR, so for a frame rate of 
+    30, max heart rate of 200, the min distance between peaks is 30*60/200=9.
+    """
+
+    min_dist = fr * 60 / max_accepted_hr
+
+    peak_idxs = []
+    for i in range(1, len(arr) - 1):
+        if arr[i] > arr[i - 1] and arr[i] > arr[i + 1]:
+            if (
+                (abs(arr[i]) > thresh)
+                and (len(peak_idxs) == 0 or (len(peak_idxs) > 0 and i - peak_idxs[-1] >= min_dist))
+            ):
+                peak_idxs.append(i)
+
+    return peak_idxs
+
+# ======= End Peak Detection =======
 
 def csi(signal):
     x = np.arange(len(signal))
@@ -296,7 +334,8 @@ def get_hr(ibis):
 
 def pipeline(path = DEFAULT_CSV_NAME, 
             detrend_method = detrend_w_poly,
-            ica_method = jade_v4):
+            ica_method = jade_v4,
+            moving_average_window = 15):
 
     # Step 1: load the spatially averaged color channels from the video
     # NOTE: Idea 1: apply signal processing on the pixel level, instead of
@@ -330,16 +369,25 @@ def pipeline(path = DEFAULT_CSV_NAME,
     plt.plot(bvp_comp)
     plt.show()
 
-    # # Step 5: Apply 5-point moving average filter to the peak comp
-    # fcomp = n_moving_avg(peak_comp, window = 5)
-    # # plt.plot(fcomp)
-    # # plt.show()
+    # Step 5: Apply 5-point moving average filter to the peak comp
+    fcomp = n_moving_avg(bvp_comp, window = moving_average_window)
+    plt.title('5-point Moving Average Filtered Component')
+    plt.plot(fcomp)
+    plt.show()
 
-    # # Step 6: Apply bandpass filter to the component
-    # fcomp = bpf(fcomp, 0.7, 4)
-    # # # f2 = bandpass_filter2(fcomp, 128, (0.7, 4))
-    
-    # # check_power_spectrum(fcomp, 60)
+    peaks = get_peaks(fcomp)
+    print('peaks len', len(peaks))
+    a = [fcomp[i] for i in peaks]
+    plt.plot(fcomp)
+    plt.scatter(peaks, [fcomp[i] for i in peaks], marker = 'x', color = 'red')
+    plt.show()
+
+    # Step 6: Apply bandpass filter to the component
+    # fcomp = bandpass(fcomp, 0.7, 4)
+    # # fcomp = bpf(fcomp, 0.7, 4)
+    # plt.title('Bandpass Filtered Component')
+    # plt.plot(fcomp)
+    # plt.show()
 
     # # # Step 7: Interpolate signal w/ cubic spline function
     # interp = cubic_spline_interpolation(fcomp)
