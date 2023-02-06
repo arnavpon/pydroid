@@ -11,6 +11,7 @@ from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSplin
 from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks
 from scipy.sparse import diags
 
+from ica import jade_v4
 from tracking import DEFAULT_CSV_NAME
 
 
@@ -119,23 +120,25 @@ def normalize_detrended(detrended_channel):
 
 # ======= End Normalization =======
 
+# ======= ICA =======
 
-# def get_bvp_w_ica(X, ica_method = jade_v4):
+def get_bvp_w_ica(X, ica_method = jade_v4):
 
-#     # decompose normalized raw traces
-#     mixing_matrix = ica_method(X)
+    # decompose normalized raw traces
+    mixing_matrix = ica_method(X)
 
-#     components = np.copy(X).dot(mixing_matrix)
+    components = np.copy(X).dot(mixing_matrix)
 
-#     # collect power spectra from each component
-#     # power_spectra = []
-#     # for comp in components:
-#     #     _, Pxx = welch(comp, fs = 1000)
-#     #     power_spectra.append(Pxx)
+    power_spectra = []
+    for i in range(components.shape[1]):
+        _, Pxx = welch(components[:, i], fs = 1000)
+        power_spectra.append(Pxx)
 
-#     # # return the component w the largest peak power spectra
-#     # bvp_index = np.argmax([np.max(ps) for ps in power_spectra])
-#     return components[:, 0]
+    maxes = [np.max(ps) for ps in power_spectra]
+    bvp_index = maxes.index(max(maxes))
+    return components[:, bvp_index]
+
+# ======= End ICA =======
 
 
 def n_moving_avg(arr, window = 5):
@@ -291,7 +294,9 @@ def get_hr(ibis):
     return 60 / np.mean(ibis)
 
 
-def pipeline(path = DEFAULT_CSV_NAME, detrend_method = detrend_w_poly):
+def pipeline(path = DEFAULT_CSV_NAME, 
+            detrend_method = detrend_w_poly,
+            ica_method = jade_v4):
 
     # Step 1: load the spatially averaged color channels from the video
     # NOTE: Idea 1: apply signal processing on the pixel level, instead of
@@ -312,62 +317,18 @@ def pipeline(path = DEFAULT_CSV_NAME, detrend_method = detrend_w_poly):
         'b': normalize_detrended(channels['b'])
     }
 
-    # sanity check
+    plt.title('Normalized Detrended Channels')
     for k in channels:
         plt.plot(channels[k])
     plt.show()
 
-    # dtm = detrend_by_differencing
-    # channels2 = {
-    #     'r': dtm(channels['r']),
-    #     'g': dtm(channels['g']),
-    #     'b': dtm(channels['b'])
-    # }
-    # dtm = detrend_by_spline
-    # channels3 = {
-    #     'r': dtm(channels['r']),
-    #     'g': dtm(channels['g']),
-    #     'b': dtm(channels['b'])
-    # }
+    # Step 4: Apply ICA and get component with highest spectrum peak
+    X = np.stack([channels['r'], channels['g'], channels['b']], axis = 1)
+    bvp_comp = get_bvp_w_ica(X, ica_method = ica_method)
 
-    # # plt.plot(channels2['g'][5: ])
-    # plt.plot(channels3['g'][5: ])
-    # plt.show()    
-
-    # Step 2: Detrend each channel individually
-    # NOTE: Detrending likely a problem. 
-    # channels2 = {
-    #     'r': detrend(channels['r']),
-    #     'g': detrend(channels['g']),
-    #     'b': detrend(channels['b'])
-    # }
-
-    # dtm = detrend_by_spline
-    # channels3 = {
-    #     'r': dtm(channels['r']),
-    #     'g': dtm(channels['g']),
-    #     'b': dtm(channels['b'])
-    # }
-
-    # for key in channels2:
-    #     plt.plot(channels2[key])
-    # plt.show()
-
-    # for key in channels3:
-    #     plt.plot(channels3[key][5: ])
-    # plt.show()
-    # # Step 3: Normalize detrended channels one by one
-    # channels = {
-    #     'r': normalize_detrended(channels['r']),
-    #     'g': normalize_detrended(channels['g']),
-    #     'b': normalize_detrended(channels['b'])
-    # }
-
-    # # Step 4: Apply ICA and get component with highest spectrum peak
-    # peak_comp = get_bvp_w_ica(
-    #     np.stack([channels['r'], channels['g'], channels['b']], axis = 1),
-    #     ica_method = ica_method
-    # )
+    plt.title('ICA Selected Component')
+    plt.plot(bvp_comp)
+    plt.show()
 
     # # Step 5: Apply 5-point moving average filter to the peak comp
     # fcomp = n_moving_avg(peak_comp, window = 5)
