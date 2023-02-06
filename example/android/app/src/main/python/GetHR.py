@@ -3,24 +3,20 @@ Module handling the calculation of HR and HRV using color channel vectors
 derived from a face video.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.interpolate import CubicSpline
+
+from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSpline as Spline
 from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks
 from scipy.sparse import diags
-from scipy.interpolate import interp1d
-from scipy.interpolate import InterpolatedUnivariateSpline as Spline
 
-from jadeR import jadeR
-from ica import jade, jade_v4
 from tracking import DEFAULT_CSV_NAME
-
-import matplotlib.pyplot as plt
 
 
 def load_channels(path = DEFAULT_CSV_NAME):
     """
-    Step 1: Load ROI channel vectors from local csv file.
+    Load ROI channel vectors from local csv file.
     """
     
     channels = pd.read_csv(path)
@@ -42,7 +38,7 @@ def load_channels(path = DEFAULT_CSV_NAME):
 
 def detrend(channel, smoothing_param = 10):
     """
-    Step 2: Given a color channel vector, apply detrending as described in 
+    Given a color channel vector, apply detrending as described in 
     "An Advanced Detrending Method With Application to HRV Analysis"
     """
 
@@ -84,43 +80,29 @@ def detrend_by_differencing(channel):
 
     return res
 
-def spline(channel, smoothing_param = 0.1):
-    clen = len(channel)
-    x = np.arange(clen)
-    spline = Spline(x, channel)
-    return spline(x)
-    
 
-
-def detrend_by_spline(channel):
+def detrend_w_poly(channel, degree = 3):
     """
-    Step 2: Detrend by spline.
+    Detrend using nth degree polynomial.
     """
 
     # make sure the channel is a np array
     if not isinstance(channel, np.ndarray):
         channel = np.array(channel)
 
-    # get length of the vector
-    T = len(channel)
-
-    # get the x values
-    x = np.arange(T)
-
-    # create the spline
-    spline = Spline(x, channel)
-
-    # get the spline values
-    spline_vals = spline(x)
-
-    return spline_vals
-
+    clen = len(channel)
+    x = np.arange(clen)
+    poly = np.polyfit(x, channel , degree)
+    curve = np.poly1d(poly)(x)
+    return channel - curve
 
 # ======= End Detrending Methods =======
     
+# ======= Normalization =======
+
 def normalize_detrended(detrended_channel):
     """
-    Step 3: Input is detrended channel from step 2. This method implements
+    Input is detrended channel. This method implements
     formula 3 in "Advancements in Noncontact, Multiparameter Physiological
     Measurements Using a Webcam".
     """
@@ -135,23 +117,25 @@ def normalize_detrended(detrended_channel):
 
     return (detrended_channel - mn) / std
 
+# ======= End Normalization =======
 
-def get_bvp_w_ica(X, ica_method = jade_v4):
 
-    # decompose normalized raw traces
-    mixing_matrix = ica_method(X)
+# def get_bvp_w_ica(X, ica_method = jade_v4):
 
-    components = np.copy(X).dot(mixing_matrix)
+#     # decompose normalized raw traces
+#     mixing_matrix = ica_method(X)
 
-    # collect power spectra from each component
-    # power_spectra = []
-    # for comp in components:
-    #     _, Pxx = welch(comp, fs = 1000)
-    #     power_spectra.append(Pxx)
+#     components = np.copy(X).dot(mixing_matrix)
 
-    # # return the component w the largest peak power spectra
-    # bvp_index = np.argmax([np.max(ps) for ps in power_spectra])
-    return components[:, 0]
+#     # collect power spectra from each component
+#     # power_spectra = []
+#     # for comp in components:
+#     #     _, Pxx = welch(comp, fs = 1000)
+#     #     power_spectra.append(Pxx)
+
+#     # # return the component w the largest peak power spectra
+#     # bvp_index = np.argmax([np.max(ps) for ps in power_spectra])
+#     return components[:, 0]
 
 
 def n_moving_avg(arr, window = 5):
@@ -307,31 +291,31 @@ def get_hr(ibis):
     return 60 / np.mean(ibis)
 
 
-def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade_v4):
+def pipeline(path = DEFAULT_CSV_NAME, detrend_method = detrend_w_poly):
 
     # Step 1: load the spatially averaged color channels from the video
     # NOTE: Idea 1: apply signal processing on the pixel level, instead of
     # spatially averaging first
-    channels = load_channels(path = DEFAULT_CSV_NAME)
+    channels = load_channels(path = path)
 
-    # smooth each channel
-    # for k in channels:
-    #     channels[k] = n_moving_avg(channels[k])
-    
+    # Step 2: Detrend each channel individually
+    channels = {
+        'r': detrend_method(channels['r']),
+        'g': detrend_method(channels['g']),
+        'b': detrend_method(channels['b'])
+    }
+
+    # Step 3: Normalize each channel
+    channels = {
+        'r': normalize_detrended(channels['r']),
+        'g': normalize_detrended(channels['g']),
+        'b': normalize_detrended(channels['b'])
+    }
+
+    # sanity check
     for k in channels:
         plt.plot(channels[k])
     plt.show()
-
-    x = np.arange(len(channels['g']))
-    y = channels['g']
-    p = np.polyfit(x, np.array(y) , 3)
-    c = np.poly1d(p)(x)
-    # plt.plot(x, c)
-    # plt.plot(y)
-    plt.plot(y - c)
-    plt.show()
-
-
 
     # dtm = detrend_by_differencing
     # channels2 = {
