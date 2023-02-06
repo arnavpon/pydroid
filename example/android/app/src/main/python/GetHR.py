@@ -37,6 +37,8 @@ def load_channels(path = DEFAULT_CSV_NAME):
     }
 
 
+# ======= Detrending Methods =======
+
 def detrend(channel, smoothing_param = 10):
     """
     Step 2: Given a color channel vector, apply detrending as described in 
@@ -64,6 +66,24 @@ def detrend(channel, smoothing_param = 10):
 
     return z_stat
 
+def detrend_by_differencing(channel):
+    """
+    Step 2: Detrend by differencing. This is the simplest detrending method.
+    """
+
+    # make sure the channel is a np array
+    if not isinstance(channel, np.ndarray):
+        channel = np.array(channel)
+
+    clen = len(channel)
+    res = np.zeros(clen)
+    res[0] = channel[0]
+    for i in range(1, clen):
+        res[i] = channel[i] - channel[i - 1]
+
+    return res
+
+# ======= End Detrending Methods =======
     
 def normalize_detrended(detrended_channel):
     """
@@ -148,7 +168,7 @@ def bandpass(arr, hamming_window, freq_range):
     return arr_filtered
 
 
-def bandpass_filter(arr, low, high, fs=60, order=128):
+def bandpass_filter(arr, low, high, fs=30, order=128):
     nyquist = fs / 2
     low = low / nyquist
     high = high / nyquist
@@ -158,7 +178,7 @@ def bandpass_filter(arr, low, high, fs=60, order=128):
     filtered = filtfilt(b, a, arr * window)
     return filtered
 
-def bpf(data, low, high, fs=60, order=3):
+def bpf(data, low, high, fs=30, order=3):
     nyquist = fs / 2
     low = low / nyquist
     high = high / nyquist
@@ -257,14 +277,25 @@ def get_hr(ibis):
 def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade_v4):
 
     # Step 1: load the spatially averaged color channels from the video
+    # NOTE: Idea 1: apply signal processing on the pixel level, instead of
+    # spatially averaging first
     channels = load_channels(path = DEFAULT_CSV_NAME)
 
+    for k in channels:
+        plt.plot(channels[k])
+    plt.show()
+
     # Step 2: Detrend each channel individually
+    # NOTE: Detrending likely a problem. 
     channels = {
         'r': detrend(channels['r']),
         'g': detrend(channels['g']),
         'b': detrend(channels['b'])
     }
+
+    for k in channels:
+        plt.plot(channels[k])
+    plt.show()
 
     # Step 3: Normalize detrended channels one by one
     channels = {
@@ -297,7 +328,7 @@ def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade_v4):
     ibis = filter_interbeat_intervals(ibis)
 
     # each ibi value represents a number of frames
-    fr = 60
+    fr = 30
     ibis = [ibi / fr for ibi in ibis]
     print(np.mean(ibis))
 
