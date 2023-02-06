@@ -224,7 +224,7 @@ def _bandpass_helper(lowcut, highcut, fs, order=5):
 
 # ======= Peak Detection =======
 
-def get_peaks(arr, fr = 30, thresh = 0.5, min_accepted_hr = 20, max_accepted_hr = 120):
+def get_peaks(arr, fr = 30, thresh = 0.25, min_accepted_hr = 20, max_accepted_hr = 120):
     """
     Step 6: Peak detection. Add a min distance between peaks based
     on reasonable assumptions about the possible range of heart rates.
@@ -248,84 +248,96 @@ def get_peaks(arr, fr = 30, thresh = 0.5, min_accepted_hr = 20, max_accepted_hr 
 
 # ======= End Peak Detection =======
 
-def csi(signal):
-    x = np.arange(len(signal))
-    y = signal
-    sample_frequency = 256
-    x_new = np.linspace(0, x[-1], int(x[-1] * sample_frequency))
-    spline = CubicSpline(x, y)
-    y_new = spline(x_new)
-    return y_new
-    
+# ===== Interbeat intervals (IBI) and HR estimation =====
 
-def cubic_spline_interpolation(signal, sample_frequency=256):
-    time = np.arange(0, len(signal)/sample_frequency, 1/sample_frequency)
-    spline = CubicSpline(time, signal)
-    new_time = np.arange(0, len(signal) / sample_frequency, 1 / sample_frequency)
-    new_time = np.clip(new_time, time.min(), time.max())
-    new_signal = spline(new_time)
-    return new_signal
+def get_ibis(peaks, fr = 30):
+    """
+    Step 7: Get the interbeat intervals (IBIs) from the peak indices.
+    """
 
-def get_ibis_w_bvp_peak_detection(arr):
-    
-    # init an empty list to store the peak locations
-    peak_locs = []
-
-    # iterate over the interpolated signal to detect BVP peaks
-    len_arr = len(arr)
-    for i in range(1, len_arr - 1):
-        if arr[i] > arr[i - 1] and arr[i] > arr[i + 1]:
-            peak_locs.append(i)
-
-    # apply NC-VT filtering to the IBIs
-    return nc_vt_filter(peak_locs)
-
-def nc_vt_filter(peak_locs, tolerance = 0.3):
-    
-    # init an empty list to store the IBIs
     ibis = []
-
-    # apply NC-VT filtering to the IBIs
-    for i in range(1, len(peak_locs) - 1):
-        
-        curr_ibi = peak_locs[i + 1] - peak_locs[i]
-        prev_ibi = peak_locs[i] - peak_locs[i - 1]
-        
-        if (curr_ibi / prev_ibi) >= 1 - tolerance and (curr_ibi / prev_ibi) <= 1 + tolerance:
-            ibis.append(curr_ibi)
-
+    for i in range(1, len(peaks)):
+        ibis.append((peaks[i] - peaks[i - 1]) / fr)
     return ibis
 
-
-def check_power_spectrum(signal, sample_rate):
-    # Compute the FFT of the signal
-    fft = np.fft.fft(signal)
+# def csi(signal):
+#     x = np.arange(len(signal))
+#     y = signal
+#     sample_frequency = 256
+#     x_new = np.linspace(0, x[-1], int(x[-1] * sample_frequency))
+#     spline = CubicSpline(x, y)
+#     y_new = spline(x_new)
+#     return y_new
     
-    # Get the frequencies corresponding to the FFT coefficients
-    freqs = np.fft.fftfreq(len(signal), 1/sample_rate)
-    
-    # Compute the power spectrum by taking the absolute value squared of the FFT
-    power_spectrum = np.abs(fft)**2
-    
-    # Plot the power spectrum
-    plt.plot(freqs, power_spectrum)
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Power')
-    plt.show()
 
-def get_interbeat_intervals(signal):
-    peaks, _ = find_peaks(signal)
-    ibis = np.diff(peaks)
-    return ibis
+# def cubic_spline_interpolation(signal, sample_frequency=256):
+#     time = np.arange(0, len(signal)/sample_frequency, 1/sample_frequency)
+#     spline = CubicSpline(time, signal)
+#     new_time = np.arange(0, len(signal) / sample_frequency, 1 / sample_frequency)
+#     new_time = np.clip(new_time, time.min(), time.max())
+#     new_signal = spline(new_time)
+#     return new_signal
 
-def filter_interbeat_intervals(interbeat_intervals):
-    mean_ibi = sum(interbeat_intervals) / len(interbeat_intervals)
-    tolerance = mean_ibi * 0.3
-    filtered_intervals = []
-    for i in range(len(interbeat_intervals)):
-        if (mean_ibi - tolerance) <= interbeat_intervals[i] <= (mean_ibi + tolerance):
-            filtered_intervals.append(interbeat_intervals[i])
-    return filtered_intervals
+# def get_ibis_w_bvp_peak_detection(arr):
+    
+#     # init an empty list to store the peak locations
+#     peak_locs = []
+
+#     # iterate over the interpolated signal to detect BVP peaks
+#     len_arr = len(arr)
+#     for i in range(1, len_arr - 1):
+#         if arr[i] > arr[i - 1] and arr[i] > arr[i + 1]:
+#             peak_locs.append(i)
+
+#     # apply NC-VT filtering to the IBIs
+#     return nc_vt_filter(peak_locs)
+
+# def nc_vt_filter(peak_locs, tolerance = 0.3):
+    
+#     # init an empty list to store the IBIs
+#     ibis = []
+
+#     # apply NC-VT filtering to the IBIs
+#     for i in range(1, len(peak_locs) - 1):
+        
+#         curr_ibi = peak_locs[i + 1] - peak_locs[i]
+#         prev_ibi = peak_locs[i] - peak_locs[i - 1]
+        
+#         if (curr_ibi / prev_ibi) >= 1 - tolerance and (curr_ibi / prev_ibi) <= 1 + tolerance:
+#             ibis.append(curr_ibi)
+
+#     return ibis
+
+
+# def check_power_spectrum(signal, sample_rate):
+#     # Compute the FFT of the signal
+#     fft = np.fft.fft(signal)
+    
+#     # Get the frequencies corresponding to the FFT coefficients
+#     freqs = np.fft.fftfreq(len(signal), 1/sample_rate)
+    
+#     # Compute the power spectrum by taking the absolute value squared of the FFT
+#     power_spectrum = np.abs(fft)**2
+    
+#     # Plot the power spectrum
+#     plt.plot(freqs, power_spectrum)
+#     plt.xlabel('Frequency (Hz)')
+#     plt.ylabel('Power')
+#     plt.show()
+
+# def get_interbeat_intervals(signal):
+#     peaks, _ = find_peaks(signal)
+#     ibis = np.diff(peaks)
+#     return ibis
+
+# def filter_interbeat_intervals(interbeat_intervals):
+#     mean_ibi = sum(interbeat_intervals) / len(interbeat_intervals)
+#     tolerance = mean_ibi * 0.3
+#     filtered_intervals = []
+#     for i in range(len(interbeat_intervals)):
+#         if (mean_ibi - tolerance) <= interbeat_intervals[i] <= (mean_ibi + tolerance):
+#             filtered_intervals.append(interbeat_intervals[i])
+#     return filtered_intervals
 
 
 def get_hr(ibis):
@@ -382,6 +394,15 @@ def pipeline(path = DEFAULT_CSV_NAME,
     plt.scatter(peaks, [fcomp[i] for i in peaks], marker = 'x', color = 'red')
     plt.show()
 
+    ibis = get_ibis(peaks)
+    plt.title('IBIs')
+    plt.plot(ibis)
+    plt.show()
+
+    mibis = np.mean(ibis)
+    print('Mean IBI:', mibis)
+    print('HR:', get_hr(ibis))
+
     # Step 6: Apply bandpass filter to the component
     # fcomp = bandpass(fcomp, 0.7, 4)
     # # fcomp = bpf(fcomp, 0.7, 4)
@@ -412,5 +433,4 @@ def pipeline(path = DEFAULT_CSV_NAME,
 
 
 if __name__ == '__main__':
-
-    print('HR is', pipeline())
+    pipeline()
