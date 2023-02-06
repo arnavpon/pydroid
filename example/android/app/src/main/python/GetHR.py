@@ -9,6 +9,7 @@ from scipy.interpolate import CubicSpline
 from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks
 from scipy.sparse import diags
 from scipy.interpolate import interp1d
+from scipy.interpolate import InterpolatedUnivariateSpline as Spline
 
 from jadeR import jadeR
 from ica import jade, jade_v4
@@ -82,6 +83,38 @@ def detrend_by_differencing(channel):
         res[i] = channel[i] - channel[i - 1]
 
     return res
+
+def spline(channel, smoothing_param = 0.1):
+    clen = len(channel)
+    x = np.arange(clen)
+    spline = Spline(x, channel)
+    return spline(x)
+    
+
+
+def detrend_by_spline(channel):
+    """
+    Step 2: Detrend by spline.
+    """
+
+    # make sure the channel is a np array
+    if not isinstance(channel, np.ndarray):
+        channel = np.array(channel)
+
+    # get length of the vector
+    T = len(channel)
+
+    # get the x values
+    x = np.arange(T)
+
+    # create the spline
+    spline = Spline(x, channel)
+
+    # get the spline values
+    spline_vals = spline(x)
+
+    return spline_vals
+
 
 # ======= End Detrending Methods =======
     
@@ -281,66 +314,108 @@ def pipeline(path = DEFAULT_CSV_NAME, ica_method = jade_v4):
     # spatially averaging first
     channels = load_channels(path = DEFAULT_CSV_NAME)
 
+    # smooth each channel
+    # for k in channels:
+    #     channels[k] = n_moving_avg(channels[k])
+    
     for k in channels:
         plt.plot(channels[k])
     plt.show()
+
+    x = np.arange(len(channels['g']))
+    y = channels['g']
+    p = np.polyfit(x, np.array(y) , 3)
+    c = np.poly1d(p)(x)
+    # plt.plot(x, c)
+    # plt.plot(y)
+    plt.plot(y - c)
+    plt.show()
+
+
+
+    # dtm = detrend_by_differencing
+    # channels2 = {
+    #     'r': dtm(channels['r']),
+    #     'g': dtm(channels['g']),
+    #     'b': dtm(channels['b'])
+    # }
+    # dtm = detrend_by_spline
+    # channels3 = {
+    #     'r': dtm(channels['r']),
+    #     'g': dtm(channels['g']),
+    #     'b': dtm(channels['b'])
+    # }
+
+    # # plt.plot(channels2['g'][5: ])
+    # plt.plot(channels3['g'][5: ])
+    # plt.show()    
 
     # Step 2: Detrend each channel individually
     # NOTE: Detrending likely a problem. 
-    channels = {
-        'r': detrend(channels['r']),
-        'g': detrend(channels['g']),
-        'b': detrend(channels['b'])
-    }
+    # channels2 = {
+    #     'r': detrend(channels['r']),
+    #     'g': detrend(channels['g']),
+    #     'b': detrend(channels['b'])
+    # }
 
-    for k in channels:
-        plt.plot(channels[k])
-    plt.show()
+    # dtm = detrend_by_spline
+    # channels3 = {
+    #     'r': dtm(channels['r']),
+    #     'g': dtm(channels['g']),
+    #     'b': dtm(channels['b'])
+    # }
 
-    # Step 3: Normalize detrended channels one by one
-    channels = {
-        'r': normalize_detrended(channels['r']),
-        'g': normalize_detrended(channels['g']),
-        'b': normalize_detrended(channels['b'])
-    }
-
-    # Step 4: Apply ICA and get component with highest spectrum peak
-    peak_comp = get_bvp_w_ica(
-        np.stack([channels['r'], channels['g'], channels['b']], axis = 1),
-        ica_method = ica_method
-    )
-
-    # Step 5: Apply 5-point moving average filter to the peak comp
-    fcomp = n_moving_avg(peak_comp, window = 5)
-    # plt.plot(fcomp)
+    # for key in channels2:
+    #     plt.plot(channels2[key])
     # plt.show()
 
-    # Step 6: Apply bandpass filter to the component
-    fcomp = bpf(fcomp, 0.7, 4)
-    # # f2 = bandpass_filter2(fcomp, 128, (0.7, 4))
-    
-    # check_power_spectrum(fcomp, 60)
+    # for key in channels3:
+    #     plt.plot(channels3[key][5: ])
+    # plt.show()
+    # # Step 3: Normalize detrended channels one by one
+    # channels = {
+    #     'r': normalize_detrended(channels['r']),
+    #     'g': normalize_detrended(channels['g']),
+    #     'b': normalize_detrended(channels['b'])
+    # }
 
-    # # Step 7: Interpolate signal w/ cubic spline function
-    interp = cubic_spline_interpolation(fcomp)
-    ibis = get_interbeat_intervals(interp)
+    # # Step 4: Apply ICA and get component with highest spectrum peak
+    # peak_comp = get_bvp_w_ica(
+    #     np.stack([channels['r'], channels['g'], channels['b']], axis = 1),
+    #     ica_method = ica_method
+    # )
 
-    ibis = filter_interbeat_intervals(ibis)
-
-    # each ibi value represents a number of frames
-    fr = 30
-    ibis = [ibi / fr for ibi in ibis]
-    print(np.mean(ibis))
-
-    plt.plot(ibis)
-    plt.show()
-    # # # Step 8: Compute IBIs
-    # ibis = get_ibis_w_bvp_peak_detection(icomp)
-    # # plt.plot(ibis)
+    # # Step 5: Apply 5-point moving average filter to the peak comp
+    # fcomp = n_moving_avg(peak_comp, window = 5)
+    # # plt.plot(fcomp)
     # # plt.show()
 
-    # # # Step 9: Return HR
-    return get_hr(ibis)
+    # # Step 6: Apply bandpass filter to the component
+    # fcomp = bpf(fcomp, 0.7, 4)
+    # # # f2 = bandpass_filter2(fcomp, 128, (0.7, 4))
+    
+    # # check_power_spectrum(fcomp, 60)
+
+    # # # Step 7: Interpolate signal w/ cubic spline function
+    # interp = cubic_spline_interpolation(fcomp)
+    # ibis = get_interbeat_intervals(interp)
+
+    # ibis = filter_interbeat_intervals(ibis)
+
+    # # each ibi value represents a number of frames
+    # fr = 30
+    # ibis = [ibi / fr for ibi in ibis]
+    # print(np.mean(ibis))
+
+    # plt.plot(ibis)
+    # plt.show()
+    # # # # Step 8: Compute IBIs
+    # # ibis = get_ibis_w_bvp_peak_detection(icomp)
+    # # # plt.plot(ibis)
+    # # # plt.show()
+
+    # # # # Step 9: Return HR
+    # return get_hr(ibis)
 
 
 if __name__ == '__main__':
