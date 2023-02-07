@@ -16,34 +16,7 @@ from FaceDetection_MT1 import (
 
 DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
-
-def track_image(img, tracker):
-    """
-    Deprecated. Don't use.
-    """
-
-    if tracker is None:
-
-        # get bbox for forehead
-        bbox = _find_forehead(img, resize = True)
-        print('bbox is')
-        print(bbox)
-
-        # init tracker to track forehead in future frames
-        tracker = dlib.correlation_tracker()
-        rect = dlib.rectangle(int(bbox['x1']), int(bbox['y1']), int(bbox['x2']), int(bbox['y2']))
-        tracker.start_track(img, rect)
-
-        # save tracker locally
-        tracker_file = open('tracker.sav', 'w')
-        pickle.dump(tracker, tracker_file)
-        tracker_file.close()
-
-        return bbox
-    
-    else:
-        print('tracker isnt none')
-        return _track_img(img, tracker, tracker_path, True)
+AUTOGEN_CCV = './channels2.csv'
 
 
 def track_video(video_path = None):
@@ -121,30 +94,6 @@ def _track(frame, tracker, channel_data, resize_img):
     cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
     
     return img
-
-def _track_img(frame, tracker, tracker_path, resize_img):
-
-    img = _process_img(frame, resize = resize_img)
-
-    # make a copy of the frame
-    img = np.copy(frame)
-    
-    # update the tracker based on the current image
-    tracker.update(img)
-    pos = tracker.get_position()
-
-    # save the updated tracker
-    tracker_file = open(tracker_path, 'w')
-    pickle.dump(tracker, tracker_file)
-    tracker_file.close()
-
-    # isolate starting and ending x/y
-    return {
-        'x1': int(pos.left()),
-        'y1': int(pos.top()),
-        'x2': int(pos.right()),
-        'y2': int(pos.bottom())
-    }
 
 def _collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_PERCENTAGE):
     """
