@@ -59,7 +59,7 @@ def track_video(video_path = None):
     
     resize_img = video_path is not None
 
-    bbox, success, frame = _find_forehead(video, resize = resize_img)
+    bbox, success, frame = _get_forehead_bbox(video, resize = resize_img)
     if bbox is None:
         print('[Python] Face not found in first frame')
         return
@@ -177,7 +177,7 @@ def _get_cropped_channels(img, bbox, roi_percentage):
     cropped_img = img[yi: yi + yh, xi: xi + xw]
     return cv2.split(cropped_img)
 
-def _find_forehead(vid, W = 20, resize = False):
+def _get_forehead_bbox(vid, W = 20, resize = False):
 
     # search the first W frames for a face
     for i in tqdm(range(W)):
