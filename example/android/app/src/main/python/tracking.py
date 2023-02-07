@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 import pandas as pd
 import os
+from tqdm import tqdm
 
 from forehead import find_forehead
 from FaceDetection_MT1 import (
@@ -58,13 +59,8 @@ def track_video(video_path = None):
     
     resize_img = video_path is not None
 
-    # read first frame of the video
-    success, frame = video.read()
-
-    # get bounding box for forehead from first frame
-    if success:
-        bbox = _find_forehead(frame, resize = resize_img)
-    else:
+    bbox, success, frame = _find_forehead(video, resize = resize_img)
+    if bbox is None:
         print('[Python] Face not found in first frame')
         return
     
@@ -181,33 +177,43 @@ def _get_cropped_channels(img, bbox, roi_percentage):
     cropped_img = img[yi: yi + yh, xi: xi + xw]
     return cv2.split(cropped_img)
 
-def _find_forehead(img, resize = False):
+def _find_forehead(vid, W = 20, resize = False):
 
-    img = _process_img(img, resize = resize)
+    # search the first W frames for a face
+    for i in tqdm(range(W)):
+        
+        success, frame = vid.read()
+        if not success:
+            print("Video ended before face was found!")
+            return None
 
-    # load facial image recognition class and get initial bounding box
-    imgProcessing = FacialImageProcessing(False)
-    bounding_boxes, _ = imgProcessing.detect_faces(img)
+        img = _process_img(frame, resize = resize)
 
-    if len(bounding_boxes) > 0:
-        bbox = bounding_boxes[0]
-        bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
-        print("Bounding Boxes: {0}".format(bbox_dict))
-    else:
-        print("No face detected!")
-        bbox_dict = {'x1': 0.0,'y1': 0.0,'x2': 0.0,'y2': 0.0}
-        return bbox_dict
+        # load facial image recognition class and get initial bounding box
+        imgProcessing = FacialImageProcessing(False)
+        bounding_boxes, _ = imgProcessing.detect_faces(img)
 
-    # adjust y2 value so that box encloses just the user's forehead
-    bbox_dict['y2'] -= find_forehead(img, bbox_dict)
+        if len(bounding_boxes) > 0:
+            bbox = bounding_boxes[0]
+            bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
+            print("Bounding Boxes: {0}".format(bbox_dict))
+        else:
+            print("No face detected!")
+            return None
 
-    return bbox_dict
+        # adjust y2 value so that box encloses just the user's forehead
+        try:
+            bbox_dict['y2'] -= find_forehead(img, bbox_dict)
+            return bbox_dict, success, frame
+        except: continue
+
+    return None
 
 
-def _process_img(img, resize = False):
+def _process_img(frame, resize = False):
 
     # convert the image to RGB
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
     if resize:
@@ -234,5 +240,5 @@ def _display_frame(img, bbox = None):
 
 if __name__ == '__main__':
     # track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/Movie on 2-2-23 at 3.31 PM.mp4')
-    # track_video()
-    track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/PXL_20230202_212010481.mp4')
+    track_video()
+    # track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/PXL_20230202_212010481.mp4')
