@@ -19,7 +19,7 @@ DEFAULT_CSV_NAME = './channels.csv'
 AUTOGEN_CCV = './channels2.csv'
 
 
-def track_video(video_path = None):
+def track_video(video_path = None, resize_img = False):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
@@ -29,9 +29,6 @@ def track_video(video_path = None):
         video = cv2.VideoCapture(0)
     else:
         video = cv2.VideoCapture(video_path)
-    
-    resize_img = video_path is not None
-    resize_img = False
 
     bbox, success, frame = _get_forehead_bbox(video, resize = resize_img)
     if bbox is None:
