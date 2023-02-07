@@ -31,10 +31,11 @@ def track_video(video_path = None):
         video = cv2.VideoCapture(video_path)
     
     resize_img = video_path is not None
+    resize_img = False
 
     bbox, success, frame = _get_forehead_bbox(video, resize = resize_img)
     if bbox is None:
-        print('[Python] Face not found in first frame')
+        print('[Python] Face not found.')
         return
     
     # init the tracker
@@ -88,8 +89,6 @@ def _track(frame, tracker, channel_data, resize_img):
     bbox = {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}
     _collect_channel_data(channel_data, img, bbox)
 
-    #start_x, end_x, start_y, end_y = _get_cropped_channels(img, {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}, DEFAULT_ROI_PERCENTAGE)
-
     # draw new rectangle on the img
     cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
     
@@ -126,9 +125,10 @@ def _get_cropped_channels(img, bbox, roi_percentage):
     cropped_img = img[yi: yi + yh, xi: xi + xw]
     return cv2.split(cropped_img)
 
-def _get_forehead_bbox(vid, W = 20, resize = False):
+def _get_forehead_bbox(vid, W = 100, resize = False):
 
     # search the first W frames for a face
+    bbox_dict = None
     for i in tqdm(range(W)):
         
         success, frame = vid.read()
@@ -147,22 +147,28 @@ def _get_forehead_bbox(vid, W = 20, resize = False):
             bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
             print("Bounding Boxes: {0}".format(bbox_dict))
         else:
-            print("No face detected!")
-            return None
+            continue
 
         # adjust y2 value so that box encloses just the user's forehead
         try:
             bbox_dict['y2'] -= find_forehead(img, bbox_dict)
             return bbox_dict, success, frame
-        except: continue
+        except: 
+            continue
 
-    return None
+    if bbox_dict is None:
+        print(f'Face not found in first {W} frames.')
+        return None, False, None
+    else:
+        return bbox_dict, success, frame
 
 
 def _process_img(frame, resize = False):
 
     # convert the image to RGB
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    print('IMG SHAPE: ', img.shape)
 
     # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
     if resize:
@@ -188,6 +194,12 @@ def _display_frame(img, bbox = None):
 
 
 if __name__ == '__main__':
+    
+    # IMG SHAPE:  (720, 1280, 3)
+    # track_video()
+
+    # from laptop IMG SHAPE: (720, 1080, 3)
     # track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/Movie on 2-2-23 at 3.31 PM.mp4')
-    track_video()
-    # track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/PXL_20230202_212010481.mp4')
+    
+    # from pixel IMG SHAPE:  (512, 288, 3)
+    track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/PXL_20230202_212010481.mp4')
