@@ -51,6 +51,8 @@ shape_predictor_68_face_landmarks.dat
 
 *.mp4
 *.mov
+*.mat
+*.pkl
 
 lib/YUV_2_RGB/
 

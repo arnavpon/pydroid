@@ -11,6 +11,7 @@ from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSplin
 from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks, lfilter
 from scipy.sparse import diags
 
+from read_rice_data import get_pulseox_array, EXAMPLE_PATH
 from ica import jade_v4
 from tracking import DEFAULT_CSV_NAME
 
@@ -167,6 +168,19 @@ def _bandpass_helper(lowcut, highcut, fs, order=5):
 
 # ======= Peak Detection =======
 
+def get_peaks_simple(arr):
+    """
+    Step 6: Peak detection. This is the simplest peak detection method.
+    """
+
+    peak_idxs = []
+    for i in range(1, len(arr) - 1):
+        if arr[i] > arr[i - 1] and arr[i] > arr[i + 1]:
+            # if abs(arr[i]) > thresh:
+            peak_idxs.append(i)
+    
+    return peak_idxs
+
 def get_peaks(arr, fr = 30, thresh = 0.25, min_accepted_hr = 20, max_accepted_hr = 120):
     """
     Step 6: Peak detection. Add a min distance between peaks based
@@ -269,6 +283,27 @@ def pipeline(path = DEFAULT_CSV_NAME,
     print('HR:', get_hr(ibis))
 
 
+def riceline(path = EXAMPLE_PATH, preproesess = True):
+
+    signal = get_pulseox_array(path)
+    
+    if preproesess:
+        signal = detrend_w_poly(signal)
+        signal = normalize_detrended(signal)
+        signal = n_moving_avg(signal, window = 15)
+    
+
+    peaks = get_peaks_simple(signal)
+    ibis = get_ibis(peaks, fr = 60)
+    hr = get_hr(ibis)
+    print('HR:', hr)
+
+    plt.plot(signal[0: 1000])
+    p = [i for i in peaks if i < 1000]
+    print(p)
+    plt.scatter(p, [signal[i] for i in p], marker = 'x', color = 'red')
+    plt.show()
+
 
 if __name__ == '__main__':
-    pipeline()
+    riceline()

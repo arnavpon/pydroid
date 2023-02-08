@@ -1,4 +1,5 @@
 import cv2
+from datetime import datetime
 import dlib
 import numpy as np
 import pickle
@@ -16,10 +17,9 @@ from FaceDetection_MT1 import (
 
 DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
-AUTOGEN_CCV = './channels2.csv'
 
 
-def track_video(video_path = None, resize_img = False):
+def track_video(video_path = None, resize_img = False, S = 120):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
@@ -46,7 +46,12 @@ def track_video(video_path = None, resize_img = False):
     # init dict to track spatial average of face ROI for each color channel
     channel_data = {'r': [], 'g': [], 'b': []}
 
+    # just loop for S seconds
+    start_time = datetime.today()
     while success:
+        
+        if (datetime.today() - start_time).seconds > S:
+            break
         
         # read the next frame
         success, frame = video.read()
@@ -164,8 +169,6 @@ def _process_img(frame, resize = False):
 
     # convert the image to RGB
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    print('IMG SHAPE: ', img.shape)
 
     # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
     if resize:
