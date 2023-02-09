@@ -279,8 +279,8 @@ def pipeline(path = DEFAULT_CSV_NAME,
     plt.show()
 
     mibis = np.mean(ibis)
-    print('Mean IBI:', mibis)
-    print('HR:', get_hr(ibis))
+    print('Pipeline Mean IBI:', mibis)
+    print('Pipeline HR:', get_hr(ibis))
 
 
 if __name__ == '__main__':

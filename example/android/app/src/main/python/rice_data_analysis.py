@@ -26,7 +26,8 @@ def get_pulseox_array(path):
     mat = io.loadmat(path)
     return mat['pulseOxRecord'][0]
 
-def analyze_frames(directory = './subj_010'):
+def analyze_frames(base_dir = './validation_data/rice_data', subject = 'subj_010', show_frames = False, roi_percentage = 0.5):
+    directory = f'{base_dir}/{subject}'
 
     files = [f'{directory}/{f}' for f in os.listdir(directory) if f[0] != '.']
     files.sort()
@@ -45,9 +46,18 @@ def analyze_frames(directory = './subj_010'):
             continue
         else:
             img, bbox = res
-            collect_channel_data(channel_data, img, bbox, roi_percentage = 0.5)
+            smaller_bbox = collect_channel_data(channel_data, img, bbox, roi_percentage = roi_percentage)
 
-    pd.DataFrame(channel_data).to_csv(f'./{directory}-channel_data.csv')
+            if show_frames:
+                cv2.rectangle(img, (smaller_bbox['x1'], smaller_bbox['y1']), (smaller_bbox['x2'], smaller_bbox['y2']), (0, 0, 255), 2)
+                cv2.rectangle(img, (int(bbox['x1']), int(bbox['y1'])), (int(bbox['x2']), int(bbox['y2'])), (0, 255, 0), 2)
+                cv2.imshow('img', img)
+                cv2.waitKey(1)
+
+    pd.DataFrame(channel_data).to_csv(
+        f'/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/channel_data/rice-{subject}-channel_data.csv',
+        index = False
+    )
 
 
 def riceline(path = EXAMPLE_PATH, preproesess = True):
@@ -74,4 +84,4 @@ def riceline(path = EXAMPLE_PATH, preproesess = True):
 
 
 if __name__ == '__main__':
-    analyze_frames()
+    analyze_frames(base_dir = './validation_data/rice_data', subject = 'subj_015', show_frames = False)

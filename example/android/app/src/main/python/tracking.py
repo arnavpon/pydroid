@@ -48,7 +48,7 @@ def track_img(img_path):
 
     
 
-def track_video(video_path = None, resize_img = False, S = 120):
+def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, show_frames = False, resize_img = False, S = 120):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
@@ -91,12 +91,12 @@ def track_video(video_path = None, resize_img = False, S = 120):
             curr_img = _track(frame, tracker, channel_data, resize_img)
 
             # display current frame
-            display_frame(curr_img)
-
-            if cv2.waitKey(10) == 27:
-                break
+            if show_frames:
+                display_frame(curr_img)
+                if cv2.waitKey(10) == 27:
+                    break
     
-    pd.DataFrame(data = channel_data).to_csv(DEFAULT_CSV_NAME, index = False)
+    pd.DataFrame(data = channel_data).to_csv(channel_filepath, index = False)
     video.release()
 
 
@@ -118,9 +118,9 @@ def _track(frame, tracker, channel_data, resize_img):
     end_y = int(pos.bottom())
 
     bbox = {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}
-    collect_channel_data(channel_data, img, bbox)
+    condensed_bbox = collect_channel_data(channel_data, img, bbox)
 
-    # draw new rectangle on the img
+    cv2.rectangle(img, (condensed_bbox['x1'], condensed_bbox['y1']), (condensed_bbox['x2'], condensed_bbox['y2']), (0, 255, 0), 3)
     cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
     
     return img
@@ -133,12 +133,14 @@ def collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_P
     """
 
     # get channels from image which is cropped by the bbox produced which is shrunk by 1 - roi_percentage
-    rc, gc, bc = _get_cropped_channels(img, bbox, roi_percentage)
+    bbox, (rc, gc, bc) = _get_cropped_channels(img, bbox, roi_percentage)
 
     # for each channel, append its mean to the channel dict
     channel_data['r'].append(np.mean(rc))
     channel_data['g'].append(np.mean(gc))
     channel_data['b'].append(np.mean(bc))
+
+    return bbox
 
 def _get_cropped_channels(img, bbox, roi_percentage):
 
@@ -154,7 +156,12 @@ def _get_cropped_channels(img, bbox, roi_percentage):
 
     # crop the image and split by channel
     cropped_img = img[yi: yi + yh, xi: xi + xw]
-    return cv2.split(cropped_img)
+    return {
+        'x1': xi,
+        'y1': yi,
+        'x2': xi + xw,
+        'y2': yi + yh
+    }, cv2.split(cropped_img)
 
 def _get_forehead_bbox(vid, W = 100, resize = False):
 
@@ -210,7 +217,6 @@ def process_img(frame, resize = False):
     return img
 
 def display_frame(img, bbox = None):
-    print(img)
     if bbox is not None:
         cv2.rectangle(
             img,
