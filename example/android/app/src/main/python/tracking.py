@@ -18,6 +18,35 @@ from FaceDetection_MT1 import (
 DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
 
+def track_img(img_path):
+    """
+    Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
+    """
+
+    img = cv2.imread(img_path)
+    img = process_img(img)
+    
+    imgProcessing = FacialImageProcessing(False)
+    bounding_boxes, _ = imgProcessing.detect_faces(img)
+
+    if len(bounding_boxes) > 0:
+        bbox = bounding_boxes[0]
+        bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
+        # print(f'Bounding Boxes: {bbox_dict}')
+    
+    else:
+        print('No face detected.')
+        return None
+
+    # adjust y2 value so that box encloses just the user's forehead
+    try:
+        bbox_dict['y2'] -= find_forehead(img, bbox_dict)
+        return img, bbox_dict
+    except: 
+        print('No forehead detected.')
+        return None
+
+    
 
 def track_video(video_path = None, resize_img = False, S = 120):
     """
@@ -41,7 +70,7 @@ def track_video(video_path = None, resize_img = False, S = 120):
     tracker.start_track(frame, rect)
     
     # display the first frame
-    _display_frame(frame, bbox)
+    display_frame(frame, bbox)
 
     # init dict to track spatial average of face ROI for each color channel
     channel_data = {'r': [], 'g': [], 'b': []}
@@ -62,7 +91,7 @@ def track_video(video_path = None, resize_img = False, S = 120):
             curr_img = _track(frame, tracker, channel_data, resize_img)
 
             # display current frame
-            _display_frame(curr_img)
+            display_frame(curr_img)
 
             if cv2.waitKey(10) == 27:
                 break
@@ -73,7 +102,7 @@ def track_video(video_path = None, resize_img = False, S = 120):
 
 def _track(frame, tracker, channel_data, resize_img):
 
-    img = _process_img(frame, resize = resize_img)
+    img = process_img(frame, resize = resize_img)
 
     # make a copy of the frame
     img = np.copy(frame)
@@ -89,14 +118,14 @@ def _track(frame, tracker, channel_data, resize_img):
     end_y = int(pos.bottom())
 
     bbox = {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}
-    _collect_channel_data(channel_data, img, bbox)
+    collect_channel_data(channel_data, img, bbox)
 
     # draw new rectangle on the img
     cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
     
     return img
 
-def _collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_PERCENTAGE):
+def collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_PERCENTAGE):
     """
     Populate the given dictionary by appending a spatial average for each channel
     within a percentage of the ROI found for the face. The reason for collecting a percentage
@@ -138,7 +167,7 @@ def _get_forehead_bbox(vid, W = 100, resize = False):
             print("Video ended before face was found!")
             return None
 
-        img = _process_img(frame, resize = resize)
+        img = process_img(frame, resize = resize)
 
         # load facial image recognition class and get initial bounding box
         imgProcessing = FacialImageProcessing(False)
@@ -165,7 +194,7 @@ def _get_forehead_bbox(vid, W = 100, resize = False):
         return bbox_dict, success, frame
 
 
-def _process_img(frame, resize = False):
+def process_img(frame, resize = False):
 
     # convert the image to RGB
     img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -180,7 +209,8 @@ def _process_img(frame, resize = False):
 
     return img
 
-def _display_frame(img, bbox = None):
+def display_frame(img, bbox = None):
+    print(img)
     if bbox is not None:
         cv2.rectangle(
             img,
