@@ -32,7 +32,7 @@ def get_subject_ibis(subject = 'subject_001', trial = 'trial_001'):
     print('Ground truth subject HR:', 60 / np.mean(ibi_vect))
 
 
-def ieee_channels(subject = 'subject_001', trial = 'trial_001'):
+def ieee_channels(subject = 'subject_001', trial = 'trial_001', S = 120):
     """
     Get channels from .csv file.
     """
@@ -40,18 +40,18 @@ def ieee_channels(subject = 'subject_001', trial = 'trial_001'):
     path = f'{VAL_DATA_PATH}/{subject}/{trial}/video/video.MOV'
     channel_filepath = f'{CHANNEL_DATA_PATH}/ieee-{subject}-{trial}-channel_data.csv'
 
-    track_video(path, channel_filepath, show_frames = True)
+    track_video(path, channel_filepath, show_frames = True, S = S)
 
 
 def ieeeline(path):
-    pipeline(path)
+    pipeline(path, lim = 500)
     
 
 
 
 if __name__ == '__main__':
-    sub = 'subject_002'
-    trial = 'trial_003'
-    ieee_channels(subject = sub, trial = trial)
+    sub = 'subject_005'
+    trial = 'trial_001'
+    ieee_channels(subject = sub, trial = trial, S = 120)
     get_subject_ibis(subject = sub, trial = trial)
     ieeeline(f'/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/channel_data/ieee-{sub}-{trial}-channel_data.csv')

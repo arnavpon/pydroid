@@ -21,19 +21,17 @@ def load_channels(path = DEFAULT_CSV_NAME):
     """
     
     channels = pd.read_csv(path)
-    if (
-        'r' not in channels.columns
-        or 'g' not in channels.columns
-        or 'b' not in channels.columns
-    ):
-        raise Exception('Channels data must contain r, g, and b data.')
+    # if (
+    #     'r' not in channels.columns
+    #     or 'g' not in channels.columns
+    #     or 'b' not in channels.columns
+    # ):
+    #     raise Exception('Channels data must contain r, g, and b data.')
 
     return {
-        'r': channels.r.to_numpy(),
-        'g': channels.g.to_numpy(),
-        'b': channels.b.to_numpy()
+        k: channels[k].to_numpy()
+        for k in channels.columns
     }
-
 
 # ======= Detrending Methods =======
 
@@ -225,7 +223,8 @@ def get_hr(ibis):
 def pipeline(path = DEFAULT_CSV_NAME, 
             detrend_method = detrend_w_poly,
             ica_method = jade_v4,
-            moving_average_window = 15):
+            moving_average_window = 15,
+            lim = 100):
 
     # Step 1: load the spatially averaged color channels from the video
     # NOTE: Idea 1: apply signal processing on the pixel level, instead of
@@ -233,17 +232,20 @@ def pipeline(path = DEFAULT_CSV_NAME,
     channels = load_channels(path = path)
 
     # Step 2: Detrend each channel individually
+    # channels = {
+    #     'r': detrend_method(channels['r'][lim: ]),
+    #     'g': detrend_method(channels['g'][lim: ]),
+    #     'b': detrend_method(channels['b'][lim: ])
+    # }
     channels = {
-        'r': detrend_method(channels['r']),
-        'g': detrend_method(channels['g']),
-        'b': detrend_method(channels['b'])
+        k: detrend_method(channels[k])
+        for k in channels
     }
 
     # Step 3: Normalize each channel
     channels = {
-        'r': normalize_detrended(channels['r']),
-        'g': normalize_detrended(channels['g']),
-        'b': normalize_detrended(channels['b'])
+        k: normalize_detrended(channels[k])
+        for k in channels
     }
 
     plt.title('Normalized Detrended Channels')
@@ -252,9 +254,9 @@ def pipeline(path = DEFAULT_CSV_NAME,
     plt.show()
 
     # Step 4: Apply ICA and get component with highest spectrum peak
-    X = np.stack([channels['r'], channels['g'], channels['b']], axis = 1)
-    #bvp_comp = get_bvp_w_ica(X, ica_method = ica_method)
-    bvp_comp = channels['g']
+    X = np.stack([channels[k] for k in channels], axis = 1)
+    bvp_comp = get_bvp_w_ica(X, ica_method = ica_method)
+    # bvp_comp = channels['g']
 
     plt.title('ICA Selected Component')
     plt.plot(bvp_comp)

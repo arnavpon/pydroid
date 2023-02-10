@@ -14,7 +14,9 @@ from FaceDetection_MT1 import (
     LOADED_W, LOADED_H,
     IMG_THRESH
 )
+from frame_analysis import channel_pca
 
+PCA_COMPS = 5
 DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
 
@@ -73,13 +75,17 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, show_fra
     display_frame(frame, bbox)
 
     # init dict to track spatial average of face ROI for each color channel
-    channel_data = {'r': [], 'g': [], 'b': []}
+    channel_data = {
+        f'{cid}_{i}': []
+        for cid in ['r', 'g', 'b']
+        for i in range(PCA_COMPS)
+    }
 
     # just loop for S seconds
     start_time = datetime.today()
     while success:
         
-        if (datetime.today() - start_time).seconds > S:
+        if S is not None and (datetime.today() - start_time).seconds > S:
             break
         
         # read the next frame
@@ -133,12 +139,13 @@ def collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_P
     """
 
     # get channels from image which is cropped by the bbox produced which is shrunk by 1 - roi_percentage
-    bbox, (rc, gc, bc) = _get_cropped_channels(img, bbox, roi_percentage)
+    bbox, channels_separate = _get_cropped_channels(img, bbox, roi_percentage)
 
     # for each channel, append its mean to the channel dict
-    channel_data['r'].append(np.mean(rc))
-    channel_data['g'].append(np.mean(gc))
-    channel_data['b'].append(np.mean(bc))
+    for cid, chan in zip(['r', 'g', 'b'], channels_separate):
+        cpca = channel_pca(chan, cid, PCA_COMPS)
+        for key in cpca:
+            channel_data[key].append(cpca[key])
 
     return bbox
 
@@ -149,10 +156,11 @@ def _get_cropped_channels(img, bbox, roi_percentage):
 
     xi = int(bbox['x1'] + ((roi_width * (1 - roi_percentage)) / 2))
     xw = int(roi_width * roi_percentage)
-    # xii = xi + xw
-    yi = int(bbox['y1'] + ((roi_height * (1 - roi_percentage)) / 2))
+
+    #yi = int(bbox['y1'] + ((roi_height * (1 - roi_percentage)) / 2))
+    yi = bbox['y1']
     yh = int(roi_height * roi_percentage)
-    # yii = yi + yw
+
 
     # crop the image and split by channel
     cropped_img = img[yi: yi + yh, xi: xi + xw]
