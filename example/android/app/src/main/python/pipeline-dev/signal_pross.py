@@ -1,37 +1,14 @@
 """
-Module handling the calculation of HR and HRV using color channel vectors
-derived from a face video.
+Module for signal processing utility methods to be used in the HR pipeline.
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-
 from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSpline as Spline
 from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks, lfilter
 from scipy.sparse import diags
 
 from ica import jade_v4
-from tracking import DEFAULT_CSV_NAME
 
-
-def load_channels(path = DEFAULT_CSV_NAME):
-    """
-    Load ROI channel vectors from local csv file.
-    """
-    
-    channels = pd.read_csv(path)
-    # if (
-    #     'r' not in channels.columns
-    #     or 'g' not in channels.columns
-    #     or 'b' not in channels.columns
-    # ):
-    #     raise Exception('Channels data must contain r, g, and b data.')
-
-    return {
-        k: channels[k].to_numpy()
-        for k in channels.columns
-    }
 
 # ======= Detrending Methods =======
 
@@ -83,6 +60,8 @@ def detrend_by_differencing(channel):
 def detrend_w_poly(channel, degree = 3):
     """
     Detrend using nth degree polynomial.
+
+    NOTE: This is the detrend method to use for now.
     """
 
     # make sure the channel is a np array
@@ -98,7 +77,7 @@ def detrend_w_poly(channel, degree = 3):
     return channel - curve
 
 # ======= End Detrending Methods =======
-    
+
 # ======= Normalization =======
 
 def normalize_detrended(detrended_channel):
@@ -120,7 +99,7 @@ def normalize_detrended(detrended_channel):
 
 # ======= End Normalization =======
 
-# ======= ICA =======
+# ======= ICA and signal selection =======
 
 def get_bvp_w_ica(X, ica_method = jade_v4):
 
@@ -220,104 +199,3 @@ def get_hr(ibis):
     return 60 / np.mean(ibis)
 
 # ===== End Interbeat intervals (IBI) and HR estimation =====
-
-
-def pipeline(path = DEFAULT_CSV_NAME, 
-            detrend_method = detrend_w_poly,
-            ica_method = jade_v4,
-            moving_average_window = 15,
-            lim = 100):
-
-    # Step 1: load the spatially averaged color channels from the video
-    # NOTE: Idea 1: apply signal processing on the pixel level, instead of
-    # spatially averaging first
-    channels = load_channels(path = path)
-
-    # Step 2: Detrend each channel individually
-    # channels = {
-    #     'r': detrend_method(channels['r'][lim: ]),
-    #     'g': detrend_method(channels['g'][lim: ]),
-    #     'b': detrend_method(channels['b'][lim: ])
-    # }
-    print(channels.keys())
-    channels = {
-        k: detrend_method(channels[k][lim: ])
-        for k in channels
-    }
-
-    # Step 3: Normalize each channel
-    channels = {
-        k: normalize_detrended(channels[k])
-        for k in channels
-    }
-
-    plt.title('Normalized Detrended Channels')
-    for k in channels:
-        plt.plot(channels[k])
-    plt.show()
-
-    # Step 4: Apply ICA and get component with highest spectrum peak
-    X = np.stack([channels[k] for k in channels], axis = 1)
-    bvp_comp = get_bvp_w_ica(X, ica_method = ica_method)
-    # bvp_comp = channels['g']
-
-    plt.title(f'ICA Selected Component')
-    plt.plot(bvp_comp)
-    plt.show()
-
-    # Step 5: Apply 5-point moving average filter to the peak comp
-    fcomp = n_moving_avg(bvp_comp, window = moving_average_window)
-    plt.title('5-point Moving Average Filtered Component')
-    plt.plot(fcomp)
-    plt.show()
-
-    peaks = get_peaks(fcomp)
-    print('peaks len', len(peaks))
-    a = [fcomp[i] for i in peaks]
-    plt.plot(fcomp)
-    plt.scatter(peaks, [fcomp[i] for i in peaks], marker = 'x', color = 'red')
-    plt.show()
-
-    ibis = get_ibis(peaks)
-    plt.title('IBIs')
-    plt.plot(ibis)
-    plt.show()
-
-    mibis = np.mean(ibis)
-    print('Pipeline Mean IBI:', mibis)
-    print('Pipeline HR:', get_hr(ibis))
-    print()
-
-    # for key in {'b_4': channels['b_4']}:
-    #     print('Selected:', key)
-    #     bvp_comp = channels[key]
-    #     plt.title(f'ICA Selected Component: {key}')
-    #     plt.plot(bvp_comp)
-    #     plt.show()
-
-    #     # Step 5: Apply 5-point moving average filter to the peak comp
-    #     fcomp = n_moving_avg(bvp_comp, window = moving_average_window)
-    #     plt.title('5-point Moving Average Filtered Component')
-    #     plt.plot(fcomp)
-    #     plt.show()
-
-    #     peaks = get_peaks(fcomp)
-    #     print('peaks len', len(peaks))
-    #     a = [fcomp[i] for i in peaks]
-    #     plt.plot(fcomp)
-    #     plt.scatter(peaks, [fcomp[i] for i in peaks], marker = 'x', color = 'red')
-    #     plt.show()
-
-    #     ibis = get_ibis(peaks)
-    #     plt.title('IBIs')
-    #     plt.plot(ibis)
-    #     plt.show()
-
-    #     mibis = np.mean(ibis)
-    #     print('Pipeline Mean IBI:', mibis)
-    #     print('Pipeline HR:', get_hr(ibis))
-    #     print()
-
-
-if __name__ == '__main__':
-    pipeline(path = '/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/subj_010-channel_data.csv')
