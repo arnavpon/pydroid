@@ -28,8 +28,17 @@ def get_subject_ibis(subject = 'subject_001', trial = 'trial_001'):
     df.columns = [col.strip() for col in df.columns]
     
     ibi_vect = df['IBI'].to_numpy()
-    print('Ground truth mean IBIs', np.mean(ibi_vect))
     print('Ground truth subject HR:', 60 / np.mean(ibi_vect))
+
+def get_subject_HR_vector(subject = 'subject_001', trial = 'trial_001'):
+    """
+    Get the ground truth HR vector for a given subject and trial.
+    """
+    
+    path = f'{VAL_DATA_PATH}/{subject}/{trial}/empatica_e4/HR.csv'
+    df = pd.read_csv(path)
+
+    return df.iloc[2: ].to_numpy()
 
 
 def ieee_channels(subject = 'subject_001', trial = 'trial_001', S = 120):
@@ -43,8 +52,8 @@ def ieee_channels(subject = 'subject_001', trial = 'trial_001', S = 120):
     track_video(path, channel_filepath, show_frames = True, S = S)
 
 
-def ieeeline(path):
-    pipeline(path, lim = 500)
+def ieeeline(path, lim = 0):
+    pipeline(path, lim = lim)
     
 
 
@@ -52,6 +61,10 @@ def ieeeline(path):
 if __name__ == '__main__':
     sub = 'subject_005'
     trial = 'trial_001'
+    print('Ground truth mean HR from HR vector:', np.mean(get_subject_HR_vector(subject = sub, trial = trial)))
     ieee_channels(subject = sub, trial = trial, S = 120)
     get_subject_ibis(subject = sub, trial = trial)
-    ieeeline(f'/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/channel_data/ieee-{sub}-{trial}-channel_data.csv')
+    ieeeline(
+        f'/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/channel_data/ieee-{sub}-{trial}-channel_data.csv',
+        lim = 1000
+    )

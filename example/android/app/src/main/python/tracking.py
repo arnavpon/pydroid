@@ -16,7 +16,7 @@ from FaceDetection_MT1 import (
 )
 from frame_analysis import channel_pca
 
-PCA_COMPS = 5
+PCA_COMPS = 3
 DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
 
@@ -75,11 +75,12 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, show_fra
     display_frame(frame, bbox)
 
     # init dict to track spatial average of face ROI for each color channel
-    channel_data = {
-        f'{cid}_{i}': []
-        for cid in ['r', 'g', 'b']
-        for i in range(PCA_COMPS)
-    }
+    # channel_data = {
+    #     f'{cid}_{i}': []
+    #     for cid in ['r', 'g', 'b']
+    #     for i in range(PCA_COMPS)
+    # }
+    channel_data = {k: [] for k in ['r', 'g', 'b']}
 
     # just loop for S seconds
     start_time = datetime.today()
@@ -139,13 +140,16 @@ def collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_P
     """
 
     # get channels from image which is cropped by the bbox produced which is shrunk by 1 - roi_percentage
-    bbox, channels_separate = _get_cropped_channels(img, bbox, roi_percentage)
+    bbox, (rc, gc, bc) = _get_cropped_channels(img, bbox, roi_percentage)
+
+    for k, c in zip(['r', 'g', 'b'], [rc, gc, bc]):
+        channel_data[k].append(np.mean(c))
 
     # for each channel, append its mean to the channel dict
-    for cid, chan in zip(['r', 'g', 'b'], channels_separate):
-        cpca = channel_pca(chan, cid, PCA_COMPS)
-        for key in cpca:
-            channel_data[key].append(cpca[key])
+    # for cid, chan in zip(['r', 'g', 'b'], channels_separate):
+    #     #cpca = channel_pca(chan, cid, PCA_COMPS)
+    #     #for key in cpca:
+    #     channel_data[cid].append(chan)
 
     return bbox
 
@@ -164,12 +168,16 @@ def _get_cropped_channels(img, bbox, roi_percentage):
 
     # crop the image and split by channel
     cropped_img = img[yi: yi + yh, xi: xi + xw]
+
+    # ==== conversion to YUB ====
+    yuv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2YUV)
+
     return {
         'x1': xi,
         'y1': yi,
         'x2': xi + xw,
         'y2': yi + yh
-    }, cv2.split(cropped_img)
+    }, cv2.split(yuv)
 
 def _get_forehead_bbox(vid, W = 100, resize = False):
 

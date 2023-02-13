@@ -91,6 +91,8 @@ def detrend_w_poly(channel, degree = 3):
 
     clen = len(channel)
     x = np.arange(clen)
+    print(x)
+    print(channel)
     poly = np.polyfit(x, channel , degree)
     curve = np.poly1d(poly)(x)
     return channel - curve
@@ -237,8 +239,9 @@ def pipeline(path = DEFAULT_CSV_NAME,
     #     'g': detrend_method(channels['g'][lim: ]),
     #     'b': detrend_method(channels['b'][lim: ])
     # }
+    print(channels.keys())
     channels = {
-        k: detrend_method(channels[k])
+        k: detrend_method(channels[k][lim: ])
         for k in channels
     }
 
@@ -258,7 +261,7 @@ def pipeline(path = DEFAULT_CSV_NAME,
     bvp_comp = get_bvp_w_ica(X, ica_method = ica_method)
     # bvp_comp = channels['g']
 
-    plt.title('ICA Selected Component')
+    plt.title(f'ICA Selected Component')
     plt.plot(bvp_comp)
     plt.show()
 
@@ -283,6 +286,37 @@ def pipeline(path = DEFAULT_CSV_NAME,
     mibis = np.mean(ibis)
     print('Pipeline Mean IBI:', mibis)
     print('Pipeline HR:', get_hr(ibis))
+    print()
+
+    # for key in {'b_4': channels['b_4']}:
+    #     print('Selected:', key)
+    #     bvp_comp = channels[key]
+    #     plt.title(f'ICA Selected Component: {key}')
+    #     plt.plot(bvp_comp)
+    #     plt.show()
+
+    #     # Step 5: Apply 5-point moving average filter to the peak comp
+    #     fcomp = n_moving_avg(bvp_comp, window = moving_average_window)
+    #     plt.title('5-point Moving Average Filtered Component')
+    #     plt.plot(fcomp)
+    #     plt.show()
+
+    #     peaks = get_peaks(fcomp)
+    #     print('peaks len', len(peaks))
+    #     a = [fcomp[i] for i in peaks]
+    #     plt.plot(fcomp)
+    #     plt.scatter(peaks, [fcomp[i] for i in peaks], marker = 'x', color = 'red')
+    #     plt.show()
+
+    #     ibis = get_ibis(peaks)
+    #     plt.title('IBIs')
+    #     plt.plot(ibis)
+    #     plt.show()
+
+    #     mibis = np.mean(ibis)
+    #     print('Pipeline Mean IBI:', mibis)
+    #     print('Pipeline HR:', get_hr(ibis))
+    #     print()
 
 
 if __name__ == '__main__':

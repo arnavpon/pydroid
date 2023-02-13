@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 
-def standardize(mat):
+def standardize_mat(mat):
     """
     Make the mean of the matrix 0 and the standard deviation 1.
     """
@@ -13,7 +13,7 @@ def standardize(mat):
 
 def channel_pca(M, cid, N = 5):
 
-    m = standardize(M)
+    m = standardize_mat(M)
     pca = PCA(n_components = N)
     pca.fit(m)
     
