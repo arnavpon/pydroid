@@ -54,6 +54,7 @@ shape_predictor_68_face_landmarks.dat
 *.mat
 *.pkl
 *subj*
+android/app/src/main/python/validation_data/
 
 lib/YUV_2_RGB/
 
