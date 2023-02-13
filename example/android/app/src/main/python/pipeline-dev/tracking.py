@@ -31,14 +31,12 @@ def track_img(img_path):
     imgProcessing = FacialImageProcessing(False)
     bounding_boxes, _ = imgProcessing.detect_faces(img)
 
-    if len(bounding_boxes) > 0:
-        bbox = bounding_boxes[0]
-        bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
-        # print(f'Bounding Boxes: {bbox_dict}')
-    
-    else:
+    if len(bounding_boxes) == 0:
         print('No face detected.')
         return None
+
+    bbox = bounding_boxes[0]
+    bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
 
     # adjust y2 value so that box encloses just the user's forehead
     try:
@@ -48,9 +46,9 @@ def track_img(img_path):
         print('No forehead detected.')
         return None
 
-    
 
-def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, show_frames = False, resize_img = False, S = 120):
+def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, 
+                show_frames = False, resize_img = False, S = None):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
@@ -61,43 +59,28 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, show_fra
     else:
         video = cv2.VideoCapture(video_path)
 
-    bbox, success, frame = _get_forehead_bbox(video, resize = resize_img)
+    bbox, (success, frame) = _get_forehead_bbox(video, resize = resize_img)
     if bbox is None:
         print('[Python] Face not found.')
         return
     
-    # init the tracker
     tracker = dlib.correlation_tracker()
     rect = dlib.rectangle(int(bbox['x1']), int(bbox['y1']), int(bbox['x2']), int(bbox['y2']))
     tracker.start_track(frame, rect)
     
-    # display the first frame
     display_frame(frame, bbox)
 
-    # init dict to track spatial average of face ROI for each color channel
-    # channel_data = {
-    #     f'{cid}_{i}': []
-    #     for cid in ['r', 'g', 'b']
-    #     for i in range(PCA_COMPS)
-    # }
     channel_data = {k: [] for k in ['r', 'g', 'b']}
-
-    # just loop for S seconds
     start_time = datetime.today()
     while success:
         
         if S is not None and (datetime.today() - start_time).seconds > S:
             break
-        
-        # read the next frame
-        success, frame = video.read()
 
+        success, frame = video.read()
         if success:
 
-            # get new bbox for the current frame
             curr_img = _track(frame, tracker, channel_data, resize_img)
-
-            # display current frame
             if show_frames:
                 display_frame(curr_img)
                 if cv2.waitKey(10) == 27:
@@ -110,9 +93,6 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, show_fra
 def _track(frame, tracker, channel_data, resize_img):
 
     img = process_img(frame, resize = resize_img)
-
-    # make a copy of the frame
-    img = np.copy(frame)
     
     # update the tracker based on the current image
     tracker.update(img)
@@ -140,16 +120,13 @@ def collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_P
     """
 
     # get channels from image which is cropped by the bbox produced which is shrunk by 1 - roi_percentage
-    bbox, (rc, gc, bc) = _get_cropped_channels(img, bbox, roi_percentage)
+    bbox, channels = _get_cropped_channels(img, bbox, roi_percentage)
 
-    for k, c in zip(['r', 'g', 'b'], [rc, gc, bc]):
+    if len(channel_data.keys()) != len(channels):
+        raise Exception('Channel data and channels are not the same length. Audit the keys initialized in channel_data.')
+
+    for k, c in zip(channel_data.keys(), channels):
         channel_data[k].append(np.mean(c))
-
-    # for each channel, append its mean to the channel dict
-    # for cid, chan in zip(['r', 'g', 'b'], channels_separate):
-    #     #cpca = channel_pca(chan, cid, PCA_COMPS)
-    #     #for key in cpca:
-    #     channel_data[cid].append(chan)
 
     return bbox
 
@@ -161,29 +138,26 @@ def _get_cropped_channels(img, bbox, roi_percentage):
     xi = int(bbox['x1'] + ((roi_width * (1 - roi_percentage)) / 2))
     xw = int(roi_width * roi_percentage)
 
-    #yi = int(bbox['y1'] + ((roi_height * (1 - roi_percentage)) / 2))
     yi = bbox['y1']
     yh = int(roi_height * roi_percentage)
 
-
-    # crop the image and split by channel
     cropped_img = img[yi: yi + yh, xi: xi + xw]
 
-    # ==== conversion to YUB ====
-    yuv = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2YUV)
+    # ==== conversion to YUV ====
+    # cropped_img = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2YUV)
 
     return {
         'x1': xi,
         'y1': yi,
         'x2': xi + xw,
         'y2': yi + yh
-    }, cv2.split(yuv)
+    }, cv2.split(cropped_img)
 
-def _get_forehead_bbox(vid, W = 100, resize = False):
+def _get_forehead_bbox(vid, iter_lim = 100, resize = False):
 
-    # search the first W frames for a face
+    # search the first iter_lim frames for a face
     bbox_dict = None
-    for i in tqdm(range(W)):
+    for _ in tqdm(range(iter_lim)):
         
         success, frame = vid.read()
         if not success:
@@ -191,19 +165,15 @@ def _get_forehead_bbox(vid, W = 100, resize = False):
             return None
 
         img = process_img(frame, resize = resize)
-
-        # load facial image recognition class and get initial bounding box
         imgProcessing = FacialImageProcessing(False)
         bounding_boxes, _ = imgProcessing.detect_faces(img)
 
-        if len(bounding_boxes) > 0:
-            bbox = bounding_boxes[0]
-            bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
-            print("Bounding Boxes: {0}".format(bbox_dict))
-        else:
+        if len(bounding_boxes) == 0:
             continue
 
-        # adjust y2 value so that box encloses just the user's forehead
+        bbox = bounding_boxes[0]
+        bbox_dict = {'x1': bbox[0],'y1': bbox[1],'x2': bbox[2],'y2': bbox[3]}
+
         try:
             bbox_dict['y2'] -= find_forehead(img, bbox_dict)
             return bbox_dict, success, frame
@@ -211,10 +181,10 @@ def _get_forehead_bbox(vid, W = 100, resize = False):
             continue
 
     if bbox_dict is None:
-        print(f'Face not found in first {W} frames.')
-        return None, False, None
+        print(f'Face not found in first {iter_lim} frames.')
+        return None, (False, None)
     else:
-        return bbox_dict, success, frame
+        return bbox_dict, (success, frame)
 
 
 def process_img(frame, resize = False):
@@ -251,7 +221,7 @@ if __name__ == '__main__':
     # track_video()
 
     # from laptop IMG SHAPE: (720, 1080, 3)
-    # track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/Movie on 2-2-23 at 3.31 PM.mp4')
+    # track_video('../Movie on 2-2-23 at 3.31 PM.mp4')
     
     # from pixel IMG SHAPE:  (512, 288, 3)
-    track_video('/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/PXL_20230202_212010481.mp4')
+    track_video('../PXL_20230202_212010481.mp4')
