@@ -186,10 +186,10 @@ def _get_forehead_bbox(vid, iter_lim = 100, resize = False):
         return bbox_dict, (success, frame)
 
 
-def process_img(frame, resize = False):
+def process_img(frame, color_filter = cv2.COLOR_BGR2RGB, resize = False):
 
     # convert the image to RGB
-    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(frame, color_filter)
 
     # resize image differently depending on if it's taken locally (<IMG_THRESH) or loaded from the library
     if resize:

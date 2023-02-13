@@ -66,4 +66,4 @@ if __name__ == '__main__':
     print('Ground truth HR from IBIs', 60 / np.mean(ieee.get_ibis()))
     
     ieee.get_channels(show_frames = True, S = 120)
-    ieee.ieee_pipeline(lim = 1000)
+    ieee.ieee_pipeline(lim = 2000)

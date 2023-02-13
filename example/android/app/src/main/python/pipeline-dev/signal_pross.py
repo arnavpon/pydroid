@@ -70,8 +70,6 @@ def detrend_w_poly(channel, degree = 3):
 
     clen = len(channel)
     x = np.arange(clen)
-    print(x)
-    print(channel)
     poly = np.polyfit(x, channel , degree)
     curve = np.poly1d(poly)(x)
     return channel - curve
