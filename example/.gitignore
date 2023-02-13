@@ -55,6 +55,7 @@ shape_predictor_68_face_landmarks.dat
 *.pkl
 *subj*
 android/app/src/main/python/pipeline-dev/validation_data/
+android/app/src/main/python/pipeline-dev/mtcnn.pb
 
 lib/YUV_2_RGB/
 
