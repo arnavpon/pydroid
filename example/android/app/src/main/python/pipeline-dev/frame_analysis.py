@@ -1,3 +1,8 @@
+"""
+Experimental module for playing with how we save data from frames for
+signal processing.
+"""
+
 import numpy as np
 from sklearn.decomposition import PCA
 

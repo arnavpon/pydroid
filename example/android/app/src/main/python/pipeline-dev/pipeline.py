@@ -57,7 +57,7 @@ def pipeline(path = DEFAULT_CSV_NAME,
     # === STEP: Apply ICA and get component with highest spectrum peak
     # NOTE: For now, we use JADE
     X = np.stack([channels[k] for k in channels], axis = 1)
-    bvp_comp = sp.get_bvp_w_ica(X, ica_method = sp.jade_v4)
+    bvp_comp = sp.get_bvp_w_ica(X, ica_method = sp.jade)
 
     if with_plots:
         plt.title(f'ICA Selected Component')

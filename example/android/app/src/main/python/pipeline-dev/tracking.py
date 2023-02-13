@@ -14,7 +14,6 @@ from FaceDetection_MT1 import (
     LOADED_W, LOADED_H,
     IMG_THRESH
 )
-from frame_analysis import channel_pca
 
 PCA_COMPS = 3
 DEFAULT_ROI_PERCENTAGE = 0.5
@@ -176,7 +175,7 @@ def _get_forehead_bbox(vid, iter_lim = 100, resize = False):
 
         try:
             bbox_dict['y2'] -= find_forehead(img, bbox_dict)
-            return bbox_dict, success, frame
+            return bbox_dict, (success, frame)
         except: 
             continue
 

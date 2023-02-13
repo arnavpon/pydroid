@@ -7,7 +7,7 @@ from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSplin
 from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks, lfilter
 from scipy.sparse import diags
 
-from ica import jade_v4
+from ica import jade
 
 
 # ======= Detrending Methods =======
@@ -101,7 +101,7 @@ def normalize_detrended(detrended_channel):
 
 # ======= ICA and signal selection =======
 
-def get_bvp_w_ica(X, ica_method = jade_v4):
+def get_bvp_w_ica(X, ica_method = jade):
 
     # decompose normalized raw traces
     mixing_matrix = ica_method(X)
