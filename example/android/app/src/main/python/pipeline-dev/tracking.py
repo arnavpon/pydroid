@@ -19,13 +19,13 @@ PCA_COMPS = 3
 DEFAULT_ROI_PERCENTAGE = 0.5
 DEFAULT_CSV_NAME = './channels.csv'
 
-def track_img(img_path):
+def track_img(img_path, color_filter = cv2.COLOR_BGR2RGB):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
 
     img = cv2.imread(img_path)
-    img = process_img(img)
+    img = process_img(img, color_filter = color_filter)
     
     imgProcessing = FacialImageProcessing(False)
     bounding_boxes, _ = imgProcessing.detect_faces(img)
@@ -46,8 +46,8 @@ def track_img(img_path):
         return None
 
 
-def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, 
-                show_frames = False, resize_img = False, S = None):
+def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, color_filter = cv2.COLOR_BGR2RGB,
+                show_frames = False, resize_img = False, S = None, face_renew = None):
     """
     Based on: https://xailient.com/blog/learn-how-to-create-a-simple-face-tracking-system-in-python/
     """
@@ -58,16 +58,17 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME,
     else:
         video = cv2.VideoCapture(video_path)
 
-    bbox, (success, frame) = _get_forehead_bbox(video, resize = resize_img)
+    bbox, (success, frame) = _get_forehead_bbox(video, color_filter, resize = resize_img)
     if bbox is None:
         print('[Python] Face not found.')
         return
     
-    tracker = dlib.correlation_tracker()
-    rect = dlib.rectangle(int(bbox['x1']), int(bbox['y1']), int(bbox['x2']), int(bbox['y2']))
-    tracker.start_track(frame, rect)
+    tracker = _init_correlation_tracker(frame, bbox)
     
     display_frame(frame, bbox)
+
+    if face_renew is not None:
+        frames_till_renewal = face_renew - 1
 
     channel_data = {k: [] for k in ['r', 'g', 'b']}
     start_time = datetime.today()
@@ -75,11 +76,29 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME,
         
         if S is not None and (datetime.today() - start_time).seconds > S:
             break
+    
+        
+        if face_renew is None:
+            success, frame = video.read()
+        
+        else:
+            
+            if frames_till_renewal == 0:
+                bbox, (success, frame) = _get_forehead_bbox(video, resize = resize_img)
+                if bbox is not None:
+                    tracker = _init_correlation_tracker(frame, bbox)
+                frames_till_renewal = face_renew - 1
+            
+            else:
+                frames_till_renewal -= 1
 
-        success, frame = video.read()
+        
         if success:
 
-            curr_img = _track(frame, tracker, channel_data, resize_img)
+            curr_img = _track(frame, tracker, channel_data, color_filter, resize_img)
+            if curr_img is None:
+                continue
+            
             if show_frames:
                 display_frame(curr_img)
                 if cv2.waitKey(10) == 27:
@@ -88,10 +107,20 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME,
     pd.DataFrame(data = channel_data).to_csv(channel_filepath, index = False)
     video.release()
 
+def _init_correlation_tracker(frame, bbox):
+    """
+    Initialize the correlation tracker
+    """
+    
+    tracker = dlib.correlation_tracker()
+    rect = dlib.rectangle(int(bbox['x1']), int(bbox['y1']), int(bbox['x2']), int(bbox['y2']))
+    tracker.start_track(frame, rect)
+    return tracker
 
-def _track(frame, tracker, channel_data, resize_img):
 
-    img = process_img(frame, resize = resize_img)
+def _track(frame, tracker, channel_data, color_filter, resize_img):
+
+    img = process_img(frame, color_filter = color_filter, resize = resize_img)
     
     # update the tracker based on the current image
     tracker.update(img)
@@ -105,6 +134,8 @@ def _track(frame, tracker, channel_data, resize_img):
 
     bbox = {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}
     condensed_bbox = collect_channel_data(channel_data, img, bbox)
+    if condensed_bbox is None:
+        return condensed_bbox
 
     cv2.rectangle(img, (condensed_bbox['x1'], condensed_bbox['y1']), (condensed_bbox['x2'], condensed_bbox['y2']), (0, 255, 0), 3)
     cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
@@ -122,7 +153,9 @@ def collect_channel_data(channel_data, img, bbox, roi_percentage = DEFAULT_ROI_P
     bbox, channels = _get_cropped_channels(img, bbox, roi_percentage)
 
     if len(channel_data.keys()) != len(channels):
-        raise Exception('Channel data and channels are not the same length. Audit the keys initialized in channel_data.')
+        #print(channel_data.keys(), len(channels))
+        #raise Exception('Channel data and channels are not the same length. Audit the keys initialized in channel_data.')
+        return None
 
     for k, c in zip(channel_data.keys(), channels):
         channel_data[k].append(np.mean(c))
@@ -134,10 +167,10 @@ def _get_cropped_channels(img, bbox, roi_percentage):
     roi_width = bbox['x2'] - bbox['x1']
     roi_height = bbox['y2'] - bbox['y1']
 
-    xi = int(bbox['x1'] + ((roi_width * (1 - roi_percentage)) / 2))
+    xi = max(0, int(bbox['x1'] + ((roi_width * (1 - roi_percentage)) / 2)))
     xw = int(roi_width * roi_percentage)
 
-    yi = bbox['y1']
+    yi = max(0, bbox['y1'])
     yh = int(roi_height * roi_percentage)
 
     cropped_img = img[yi: yi + yh, xi: xi + xw]
@@ -145,14 +178,15 @@ def _get_cropped_channels(img, bbox, roi_percentage):
     # ==== conversion to YUV ====
     # cropped_img = cv2.cvtColor(cropped_img, cv2.COLOR_BGR2YUV)
 
+    channels = cv2.split(cropped_img)
     return {
         'x1': xi,
         'y1': yi,
         'x2': xi + xw,
         'y2': yi + yh
-    }, cv2.split(cropped_img)
+    }, channels
 
-def _get_forehead_bbox(vid, iter_lim = 100, resize = False):
+def _get_forehead_bbox(vid, color_filter, iter_lim = 100, resize = False):
 
     # search the first iter_lim frames for a face
     bbox_dict = None
@@ -163,7 +197,7 @@ def _get_forehead_bbox(vid, iter_lim = 100, resize = False):
             print("Video ended before face was found!")
             return None
 
-        img = process_img(frame, resize = resize)
+        img = process_img(frame, color_filter, resize = resize)
         imgProcessing = FacialImageProcessing(False)
         bounding_boxes, _ = imgProcessing.detect_faces(img)
 

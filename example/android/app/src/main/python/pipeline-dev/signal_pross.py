@@ -179,6 +179,32 @@ def get_peaks(arr, fr = 30, thresh = 0.25, min_accepted_hr = 20, max_accepted_hr
 
     return peak_idxs
 
+def ncvt(signal, tolerance = 0.3, step = 50):
+
+    uu = tolerance
+    um = tolerance
+
+    L = 0
+    M = 1e-10  # small nonzero value
+
+    result = [signal[0]]
+    for i in range(1, len(signal) - 1):
+
+        if (
+            abs(signal[i] - signal[L]) / signal[L] < uu
+            or abs(signal[i] - signal[i + 1]) / signal[L] < uu
+            or abs(signal[i] - M) / M < um
+        ):
+            
+            result.append(signal[i])
+            L = i
+            
+            if len(result) % step == 0:
+                M = np.mean(result[-step: ])
+                uu = tolerance / M
+    
+    return result
+
 # ======= End Peak Detection =======
 
 # ===== Interbeat intervals (IBI) and HR estimation =====

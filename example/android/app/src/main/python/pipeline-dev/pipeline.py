@@ -24,7 +24,9 @@ def load_channels(path = DEFAULT_CSV_NAME):
 
 
 def pipeline(path = DEFAULT_CSV_NAME, 
-            moving_average_window = 15,
+            moving_average_window = 10,
+            ncvt_tolerance = 0.03,
+            ncvt_step_size = 50,
             lim = 0, with_plots = True):
 
     # === STEP: Load color signals
@@ -41,6 +43,8 @@ def pipeline(path = DEFAULT_CSV_NAME,
         k: sp.detrend_w_poly(channels[k][lim: ])
         for k in channels
     }
+
+    print(f'Channel length with lim of {lim}: {len(channels[list(channels.keys())[0]])}')
 
     # === STEP: Normalize each channel
     channels = {
@@ -82,17 +86,24 @@ def pipeline(path = DEFAULT_CSV_NAME,
 
     # === STEP: Get IBIs from peaks
     ibis = sp.get_ibis(peaks)
+    ibis_ncvt = sp.ncvt(ibis, tolerance = ncvt_tolerance, step = ncvt_step_size)
     
     if with_plots:
         plt.title('IBIs')
-        plt.plot(ibis)
+        plt.plot(ibis, label = 'Reg')
+        plt.plot(ibis_ncvt, label = 'NC-VT')
         plt.show()
+    
+
 
     # === STEP: Get HR
-    mibis = np.mean(ibis)
-    print('Pipeline Mean IBI:', mibis)
-    print('Pipeline HR:', sp.get_hr(ibis))
-    print()
+    # mibis = np.mean(ibis)
+    # print('Pipeline Mean IBI (w/o NCVT):', mibis)
+    # print('Pipeline HR (w/o NCVT):', sp.get_hr(ibis))
+    # print('Pipeline HR (w/ NCVT):', sp.get_hr(ibis_ncvt))
+    # print()
+
+    return sp.get_hr(ibis_ncvt)
 
 
 if __name__ == '__main__':
