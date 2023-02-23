@@ -242,17 +242,27 @@ if __name__ == '__main__':
         '007': ['001'],
     }
         
-        
-
-    # for subj in using:
-    #     for trial in using[subj]:
-    #         gt, hr = ieee_pipe(subj, trial, ground_truth_path = 'HR', peak_height = 0.00012, plot = True)
-    #         err = round(abs(gt - hr) / gt * 100, 2)
-    #         errs.append(err)
-    #         print(f'Error: {err}%')
-    #         print()
+    for subj in using:
+        for trial in using[subj]:
+            gt, hr = ieee_pipe(
+                subj, trial,
+                ground_truth_path = 'HR',
+                freq = (0.5, 3.7),
+                peak_height = 0.00012,
+                moving_avg_window = 8,
+                bandpass_order = 4,
+                slice_filter_thresh = 2,
+                stringent_perc = 80,
+                non_stringent_perc = 55,
+                plot = True
+            )
+            
+            err = round(abs(gt - hr) / gt * 100, 2)
+            errs.append(err)
+            print(f'Error: {err}%')
+            print()
     
-    # print(f'Average error: {np.mean(errs)}%')
+    print(f'Average error: {np.mean(errs)}%')
 
 
     # {'mean_err': 9.420449004715689, 'mse': 150.6233113389274, 'min_freq': 0.5, 'max_freq': 3.7, 'peak_height': 0.00012, 'moving_avg_window': 8, 'bandpass_order': 4, 'slice_filter_thresh': 2, 'stringent_perc': 80, 'non_stringent_perc': 55}
