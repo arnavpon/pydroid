@@ -2,17 +2,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.signal import butter, filtfilt, find_peaks
+from tqdm import tqdm
 
 import signal_pross as sp
 from pos import acquire_raw_signals
 
 
-def chrominance(f, fr = 30, freq = (0.5, 3.34), moving_avg_window = 6):
+def chrominance(f, fr = 30,
+                freq = (0.5, 3.34),
+                moving_avg_window = 6,
+                bandpass_order = 4,
+                split_num = 4):
 
     df = pd.read_csv(f)
     r, g, b = df['r'].to_numpy(), df['g'].to_numpy(), df['b'].to_numpy()
     
-    quart = len(r) // 4
+    quart = len(r) // split_num
     r, g, b = r[quart: -quart], g[quart: -quart], b[quart: -quart]
 
     # === skin tone normalization ===
@@ -33,7 +38,7 @@ def chrominance(f, fr = 30, freq = (0.5, 3.34), moving_avg_window = 6):
     # === end combining the terms ===
 
     # === bandpass again ===
-    def _bandpass(v, order = 4):
+    def _bandpass(v, order = bandpass_order):
         # return np.convolve(v, np.hamming(int(fr / low)))[::int(fr / high)]
         nyquist_freq = 0.5 * fr
         low = freq[0] / nyquist_freq
@@ -61,9 +66,13 @@ def chrominance(f, fr = 30, freq = (0.5, 3.34), moving_avg_window = 6):
     #return _normalize_signal(signal, 0.001)
     return sp.n_moving_avg(signal, moving_avg_window)
 
-def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
+def pipe(f, fr = 30, freq = (0.5, 3.34), 
+        peak_height = 0.00025, split = None,
+        moving_avg_window = 6, bandpass_order = 4,
+        slice_filter_thresh = 2, stringent_perc = 85,
+        non_stringent_perc = 75, split_num = 4, plot = False):
 
-    signal = chrominance(f, fr, freq)
+    signal = chrominance(f, fr, freq, moving_avg_window, bandpass_order, split_num)
     if signal is None:
         return None
     
@@ -77,30 +86,30 @@ def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
         for i in range(0, len(signal) - fr, fr):
             j = i + fr
             slce = peaks[(peaks >= i) & (peaks < j)]
-            if len(slce) > 2:
+            if len(slce) > slice_filter_thresh:
                 to_remove = [i for i in range(len(slce)) if signal[slce[i]] < np.percentile(signal[slce], perc1)]
                 peaks = peaks[~np.isin(peaks, [slce[i] for i in to_remove])]
                 removed += len(to_remove)
-        print('Removed with walk:', removed, 'peaks')
+        #print('Removed with walk:', removed, 'peaks')
         # === end peak walk ===
         
         return peaks
 
     
     def _get_peaks(perc1, perc2, with_min_dist = True):
-
         if with_min_dist: min_dist = fr // freq[1]
         else: min_dist = 1
         peaks, _ = find_peaks(signal, height = peak_height, distance = min_dist)
         peaks = _filter_peaks(peaks, perc1, perc2)
         return peaks
-    peaks = _get_peaks(85, 75, with_min_dist = True)
+    peaks = _get_peaks(stringent_perc, non_stringent_perc, with_min_dist = True)
 
     # === end peaks ===
-    plot_thresh = 1000
-    plt.plot(signal[0: plot_thresh])
-    ps = peaks[peaks < plot_thresh]
-    plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
+    if plot:
+        plot_thresh = 1000
+        plt.plot(signal[0: plot_thresh])
+        ps = peaks[peaks < plot_thresh]
+        plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
     
     ibis = sp.get_ibis(peaks)
 
@@ -113,7 +122,10 @@ def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
             for i in range(split)
         ]
 
-def ieee_pipe(subj, trial, ground_truth_path = 'IBI', peak_height = 0.00025, plot = False):
+def ieee_pipe(subj, trial, ground_truth_path = 'IBI', freq = (0.5, 3.0), peak_height = 0.00025, split = None,
+        moving_avg_window = 6, bandpass_order = 4,
+        slice_filter_thresh = 2, stringent_perc = 85,
+        non_stringent_perc = 75, split_num = 4, verbose = True, plot = False):
     
     # get ground truth
     gt_path = f'validation_data/IEEE_data/subject_{subj}/trial_{trial}/empatica_e4/{ground_truth_path}.csv'
@@ -128,20 +140,94 @@ def ieee_pipe(subj, trial, ground_truth_path = 'IBI', peak_height = 0.00025, plo
 
     # === For lack of a better idea, we use the middle 50% of ground truth and measured
     # signal, even though they don't actually line up properly. ===
-    quart = len(gt) // 4
+    quart = len(gt) // split_num
     gt = gt[quart: -quart]
     
     # data path
     data_path = f'channel_data2/ieee-subject_{subj}-trial_{trial}-channel_data.csv'
-    hr = pipe(data_path, freq = (0.5, 3.0), split = None, peak_height = peak_height)
+    hr = pipe(
+        data_path, freq = freq, split = None, peak_height = peak_height,
+        moving_avg_window = moving_avg_window, bandpass_order = bandpass_order,
+        slice_filter_thresh = slice_filter_thresh, stringent_perc = stringent_perc,
+        non_stringent_perc = non_stringent_perc, split_num = split_num, plot = plot
+    )
 
-    print(f'Subject {subj}, Trial {trial}:')
-    print(f'Ground truth HR from {ground_truth_path}: {np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt)}')
-    print(f'HR from chrominance: {hr}')
+    if verbose:
+        print(f'Subject {subj}, Trial {trial}:')
+        print(f'Ground truth HR from {ground_truth_path}: {np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt)}')
+        print(f'HR from chrominance: {hr}')
     if plot:
         plt.show()
 
     return (np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt), hr)
+
+
+def test_variables(using, min_freqs, max_freqs, peak_heights,
+    moving_avg_windows, bandpass_orders, slice_filter_threshs,
+    stringent_percs, non_stringent_percs):
+
+    # min_freqs = [0.5, 0.6, 0.8]
+    # max_freqs = [2.5, 2.8, 3.0, 3.3, 3.7, 3.9]
+    # peak_heights = [0.0008, 0.00012, 0.0003]
+    # moving_avg_windows = [1, 5, 8]
+    # bandpass_orders = [4]
+    # slice_filter_threshs = [2]
+    # stringent_percs = [80, 85, 90]
+    # non_stringent_percs = [55, 65, 70]
+    # test_variables(
+    #     using, min_freqs, max_freqs, 
+    #     peak_heights, moving_avg_windows,
+    #     bandpass_orders, slice_filter_threshs,
+    #     stringent_percs, non_stringent_percs
+    # )
+
+    print('Iterations:', len(min_freqs) * len(max_freqs) * len(peak_heights) * len(moving_avg_windows) * len(bandpass_orders) * len(slice_filter_threshs) * len(stringent_percs) * len(non_stringent_percs))
+
+    params = []
+    for i in tqdm(range(len(min_freqs))):
+        min_freq = min_freqs[i]
+        for j in tqdm(range(len(max_freqs))):
+            max_freq = max_freqs[j]
+            for peak_height in peak_heights:
+                for moving_avg_window in moving_avg_windows:
+                    for bandpass_order in bandpass_orders:
+                        for slice_filter_thresh in slice_filter_threshs:
+                            for stringent_perc in stringent_percs:
+                                for non_stringent_perc in non_stringent_percs:
+
+                                    errs = []
+                                    for subj in using:
+                                        for trial in using[subj]:
+                                            gt, hr = ieee_pipe(subj, trial, ground_truth_path = 'HR', freq = (min_freq, max_freq), peak_height = peak_height, plot = False,
+                                                moving_avg_window = moving_avg_window, bandpass_order = bandpass_order,
+                                                slice_filter_thresh = slice_filter_thresh, stringent_perc = stringent_perc,
+                                                non_stringent_perc = non_stringent_perc, verbose = False)
+                                            err = abs(gt - hr)
+                                            errs.append((err, pow(err, 2)))
+                                    
+                                    me = np.mean([e[0] for e in errs])
+                                    mse = np.mean([e[1] for e in errs])
+                                    params.append({
+                                        'mean_err': me,
+                                        'mse': mse,
+                                        'min_freq': min_freq,
+                                        'max_freq': max_freq,
+                                        'peak_height': peak_height,
+                                        'moving_avg_window': moving_avg_window,
+                                        'bandpass_order': bandpass_order,
+                                        'slice_filter_thresh': slice_filter_thresh,
+                                        'stringent_perc': stringent_perc,
+                                        'non_stringent_perc': non_stringent_perc,
+                                    })
+
+                                    # print(f'Params: Min Freq: {min_freq}; Max Freq: {max_freq}; Peak Height: {peak_height}; Moving Avg Window: {moving_avg_window}; Bandpass Order: {bandpass_order}; Slice Filter Thresh: {slice_filter_thresh}; Stringent Perc: {stringent_perc}; Non-Stringent Perc: {non_stringent_perc}')
+                                    # print(f'Error: {err}%')
+                                    # print()
+
+    params.sort(key = lambda x: x['mse'])
+    for p in params:
+        print(p)
+        print()
 
 
 if __name__ == '__main__':
@@ -155,14 +241,26 @@ if __name__ == '__main__':
         '006': ['001'],
         '007': ['001'],
     }
+        
+        
 
-    errs = []
-    for subj in using:
-        for trial in using[subj]:
-            gt, hr = ieee_pipe(subj, trial, ground_truth_path = 'HR', peak_height = 0.00012, plot = True)
-            err = round(abs(gt - hr) / gt * 100, 2)
-            errs.append(err)
-            print(f'Error: {err}%')
-            print()
+    # for subj in using:
+    #     for trial in using[subj]:
+    #         gt, hr = ieee_pipe(subj, trial, ground_truth_path = 'HR', peak_height = 0.00012, plot = True)
+    #         err = round(abs(gt - hr) / gt * 100, 2)
+    #         errs.append(err)
+    #         print(f'Error: {err}%')
+    #         print()
     
-    print(f'Average error: {np.mean(errs)}%')
+    # print(f'Average error: {np.mean(errs)}%')
+
+
+    # {'mean_err': 9.420449004715689, 'mse': 150.6233113389274, 'min_freq': 0.5, 'max_freq': 3.7, 'peak_height': 0.00012, 'moving_avg_window': 8, 'bandpass_order': 4, 'slice_filter_thresh': 2, 'stringent_perc': 80, 'non_stringent_perc': 55}
+
+    # {'mean_err': 9.420449004715689, 'mse': 150.6233113389274, 'min_freq': 0.5, 'max_freq': 3.7, 'peak_height': 0.00012, 'moving_avg_window': 8, 'bandpass_order': 4, 'slice_filter_thresh': 2, 'stringent_perc': 85, 'non_stringent_perc': 55}
+
+    # {'mean_err': 9.420449004715689, 'mse': 150.6233113389274, 'min_freq': 0.5, 'max_freq': 3.7, 'peak_height': 0.00012, 'moving_avg_window': 8, 'bandpass_order': 4, 'slice_filter_thresh': 2, 'stringent_perc': 90, 'non_stringent_perc': 55}
+
+    # {'mean_err': 9.2411477407509, 'mse': 151.22351673537202, 'min_freq': 0.5, 'max_freq': 3.9, 'peak_height': 0.00012, 'moving_avg_window': 8, 'bandpass_order': 4, 'slice_filter_thresh': 2, 'stringent_perc': 80, 'non_stringent_perc': 55}
+
+    # {'mean_err': 9.2411477407509, 'mse': 151.22351673537202, 'min_freq': 0.5, 'max_freq': 3.9, 'peak_height': 0.00012, 'moving_avg_window': 8, 'bandpass_order': 4, 'slice_filter_thresh': 2, 'stringent_perc': 85, 'non_stringent_perc': 55}
