@@ -41,6 +41,7 @@ def chrominance(f, fr = 30, freq = (0.5, 3.34)):
         b, a = butter(order, [low, high], btype = 'band')
         filtered = filtfilt(b, a, v)
         return filtered
+    
     xf = _bandpass(xs)
     yf = _bandpass(ys)
     rf = _bandpass(rn)
@@ -57,17 +58,29 @@ def chrominance(f, fr = 30, freq = (0.5, 3.34)):
         normalized_signal = signal * scale_factor
         return normalized_signal
 
-    return _normalize_signal(signal, 0.001)
+    #return _normalize_signal(signal, 0.001)
+    return sp.n_moving_avg(signal, 1)
 
 def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
 
     signal = chrominance(f, fr, freq)
     if signal is None:
         return None
-    peaks, _ = find_peaks(signal, height = peak_height)
-    plt.plot(signal)
-    plt.scatter(peaks, signal[peaks], marker = 'x', color = 'red')
-    plt.show()
+    
+
+    # === Peaks ===
+    def _get_peaks(with_min_dist = True):
+        if with_min_dist: min_dist = fr // freq[1]
+        else: min_dist = 1
+        peaks, _ = find_peaks(signal, height = peak_height, distance = min_dist)
+        return peaks
+    peaks = _get_peaks(with_min_dist = True)
+
+    # === end peaks ===
+    plot_thresh = 1000
+    plt.plot(signal[0: plot_thresh])
+    ps = peaks[peaks < plot_thresh]
+    plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
     
     ibis = sp.get_ibis(peaks)
 
@@ -80,7 +93,7 @@ def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
             for i in range(split)
         ]
 
-def ieee_pipe(subj, trial, ground_truth_path = 'IBI', peak_height = 0.00025):
+def ieee_pipe(subj, trial, ground_truth_path = 'IBI', peak_height = 0.00025, plot = False):
     
     # get ground truth
     gt_path = f'validation_data/IEEE_data/subject_{subj}/trial_{trial}/empatica_e4/{ground_truth_path}.csv'
@@ -100,11 +113,13 @@ def ieee_pipe(subj, trial, ground_truth_path = 'IBI', peak_height = 0.00025):
     
     # data path
     data_path = f'channel_data2/ieee-subject_{subj}-trial_{trial}-channel_data.csv'
-    hr = pipe(data_path, split = None, peak_height = peak_height)
+    hr = pipe(data_path, freq = (0.5, 3.0), split = None, peak_height = peak_height)
 
     print(f'Subject {subj}, Trial {trial}:')
     print(f'Ground truth HR from {ground_truth_path}: {np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt)}')
     print(f'HR from chrominance: {hr}')
+    if plot:
+        plt.show()
 
     return (np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt), hr)
 
@@ -121,8 +136,13 @@ if __name__ == '__main__':
         '007': ['001'],
     }
 
+    errs = []
     for subj in using:
         for trial in using[subj]:
-            gt, hr = ieee_pipe(subj, trial, ground_truth_path = 'HR', peak_height = 0.00025)
-            print(f'Error: {abs(gt - hr) / gt * 100}%')
+            gt, hr = ieee_pipe(subj, trial, ground_truth_path = 'HR', peak_height = 0.00012, plot = True)
+            err = round(abs(gt - hr) / gt * 100, 2)
+            errs.append(err)
+            print(f'Error: {err}%')
             print()
+    
+    print(f'Average error: {np.mean(errs)}%')
