@@ -4,7 +4,7 @@ Module for signal processing utility methods to be used in the HR pipeline.
 
 import numpy as np
 from scipy.interpolate import CubicSpline, interp1d, InterpolatedUnivariateSpline as Spline
-from scipy.signal import welch, stft, istft, windows, butter, filtfilt, hamming, find_peaks, lfilter
+from scipy.signal import welch, wiener, stft, istft, windows, butter, filtfilt, hamming, find_peaks, lfilter
 from scipy.sparse import diags
 
 from ica import jade
@@ -138,6 +138,19 @@ def bandpass(data, lowcut, highcut, fs = 30, order = 5):
 
 def _bandpass_helper(lowcut, highcut, fs, order=5):
     return butter(order, [lowcut, highcut], fs = fs, btype='band')
+
+
+def wiener_filter(arr, fr = 30, noverlap = 2, nfft = 1024):
+
+    nperseg = 10 * fr
+    f, Pxx = welch(arr, fs = fr, nperseg = nperseg, noverlap = 5)
+
+    noise_power = np.mean(Pxx[:(len(Pxx) // 2 + 1)])
+    signal_power = np.mean(Pxx[(len(Pxx) // 2 + 1):])
+    snr = signal_power / noise_power
+    print('SNR:', snr)
+    filtered = wiener(arr, mysize = 100, noise = snr)
+    return filtered
 
 
 # ======= End Filtering =======
