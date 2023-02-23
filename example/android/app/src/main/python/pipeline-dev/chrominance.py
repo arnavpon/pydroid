@@ -7,7 +7,7 @@ import signal_pross as sp
 from pos import acquire_raw_signals
 
 
-def chrominance(f, fr = 30, freq = (0.5, 3.34)):
+def chrominance(f, fr = 30, freq = (0.5, 3.34), moving_avg_window = 6):
 
     df = pd.read_csv(f)
     r, g, b = df['r'].to_numpy(), df['g'].to_numpy(), df['b'].to_numpy()
@@ -59,7 +59,7 @@ def chrominance(f, fr = 30, freq = (0.5, 3.34)):
         return normalized_signal
 
     #return _normalize_signal(signal, 0.001)
-    return sp.n_moving_avg(signal, 1)
+    return sp.n_moving_avg(signal, moving_avg_window)
 
 def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
 
@@ -69,12 +69,32 @@ def pipe(f, fr = 30, freq = (0.5, 3.34), peak_height = 0.00025, split = None):
     
 
     # === Peaks ===
-    def _get_peaks(with_min_dist = True):
+    def _filter_peaks(peaks, perc1, perc2):
+        peaks = np.array([p for p in peaks if signal[p] >= np.percentile(signal, perc2)])   
+        
+        # === peak walk ===
+        removed = 0
+        for i in range(0, len(signal) - fr, fr):
+            j = i + fr
+            slce = peaks[(peaks >= i) & (peaks < j)]
+            if len(slce) > 2:
+                to_remove = [i for i in range(len(slce)) if signal[slce[i]] < np.percentile(signal[slce], perc1)]
+                peaks = peaks[~np.isin(peaks, [slce[i] for i in to_remove])]
+                removed += len(to_remove)
+        print('Removed with walk:', removed, 'peaks')
+        # === end peak walk ===
+        
+        return peaks
+
+    
+    def _get_peaks(perc1, perc2, with_min_dist = True):
+
         if with_min_dist: min_dist = fr // freq[1]
         else: min_dist = 1
         peaks, _ = find_peaks(signal, height = peak_height, distance = min_dist)
+        peaks = _filter_peaks(peaks, perc1, perc2)
         return peaks
-    peaks = _get_peaks(with_min_dist = True)
+    peaks = _get_peaks(85, 75, with_min_dist = True)
 
     # === end peaks ===
     plot_thresh = 1000
