@@ -78,16 +78,16 @@ def pipe(f, fr = 30, freq = (0.5, 3.34),
     
 
     # === Peaks ===
-    def _filter_peaks(peaks, perc1, perc2):
-        peaks = np.array([p for p in peaks if signal[p] >= np.percentile(signal, perc2)])   
+    def _filter_peaks(sig, peaks, perc1, perc2):
+        peaks = np.array([p for p in peaks if sig[p] >= np.percentile(sig, perc2)])   
         
         # === peak walk ===
         removed = 0
-        for i in range(0, len(signal) - fr, fr):
+        for i in range(0, len(sig) - fr, fr):
             j = i + fr
             slce = peaks[(peaks >= i) & (peaks < j)]
             if len(slce) > slice_filter_thresh:
-                to_remove = [i for i in range(len(slce)) if signal[slce[i]] < np.percentile(signal[slce], perc1)]
+                to_remove = [i for i in range(len(slce)) if sig[slce[i]] < np.percentile(sig[slce], perc1)]
                 peaks = peaks[~np.isin(peaks, [slce[i] for i in to_remove])]
                 removed += len(to_remove)
         #print('Removed with walk:', removed, 'peaks')
@@ -95,23 +95,32 @@ def pipe(f, fr = 30, freq = (0.5, 3.34),
         
         return peaks
 
-    
-    def _get_peaks(perc1, perc2, with_min_dist = True):
+    def _get_peaks(sig, perc1, perc2, with_min_dist = True):
         if with_min_dist: min_dist = fr // freq[1]
         else: min_dist = 1
-        peaks, _ = find_peaks(signal, height = peak_height, distance = min_dist)
-        peaks = _filter_peaks(peaks, perc1, perc2)
+        peaks, _ = find_peaks(sig, height = peak_height, distance = min_dist)
+        peaks = _filter_peaks(sig, peaks, perc1, perc2)
         return peaks
-    peaks = _get_peaks(stringent_perc, non_stringent_perc, with_min_dist = True)
+    
+    peaks = _get_peaks(signal, stringent_perc, non_stringent_perc, with_min_dist = True)
+    sig_inv = signal * -1
+    valleys = _get_peaks(sig_inv, stringent_perc, non_stringent_perc, with_min_dist = True)
 
     # === end peaks ===
+    # if plot:
+    #     plot_thresh = 1000
+    #     plt.plot(signal[0: plot_thresh])
+    #     ps = peaks[peaks < plot_thresh]
+    #     plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
     if plot:
         plot_thresh = 1000
-        plt.plot(signal[0: plot_thresh])
-        ps = peaks[peaks < plot_thresh]
-        plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
+        plt.plot(sig_inv[0: plot_thresh])
+        ps = valleys[valleys < plot_thresh]
+        plt.scatter(ps, sig_inv[ps], marker = 'x', color = 'red')
     
     ibis = sp.get_ibis(peaks)
+    ib2 = sp.get_ibis(valleys)
+
     if split is None:
         return sp.get_hr(ibis)
     else:
@@ -156,8 +165,8 @@ def ieee_pipe(subj, trial, ground_truth_path = 'IBI', freq = (0.5, 3.0), peak_he
         # print(f'Subject {subj}, Trial {trial}:')
         # print(f'Ground truth HR from {ground_truth_path}: {np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt)}')
         # print(f'HR from chrominance: {hr}')
-    if plot:
-        plt.show()
+    # if plot:
+    #     plt.show()
 
     if split is None:
         return (np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt), hr)
@@ -252,6 +261,7 @@ if __name__ == '__main__':
     }
     
     errs = []
+    plot = True
     for subj in using:
         for trial in using[subj]:
             gt, hr = ieee_pipe(
@@ -264,13 +274,15 @@ if __name__ == '__main__':
                 slice_filter_thresh = 2,
                 stringent_perc = 80,
                 non_stringent_perc = 55,
-                plot = True
+                plot = plot
             )
 
             print(f'Subject {subj}, Trial {trial}:')
             print(f'Ground truth HR from HR: {np.median(gt)}')# : {gt}')
             print(f'HR from chrominance: {np.median(hr)}')# : {hr}')
             
+            if plot: plt.show()
+
             gt_reported = gt if isinstance(gt, float) else np.mean(gt)
             hr_reported = hr if isinstance(hr, float) else np.mean(hr)
             err = round(abs(gt_reported - hr_reported) / gt_reported * 100, 2)
