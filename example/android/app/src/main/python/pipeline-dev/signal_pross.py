@@ -129,7 +129,7 @@ def n_moving_avg(arr, window = 5):
     for i in range(len(arr) - 4):
         result.append(float(sum(arr[i: i + window])) / window)
     
-    return result
+    return np.array(result)
 
 def bandpass(data, lowcut, highcut, fs = 30, order = 5):
     b, a = _bandpass_helper(lowcut, highcut, fs, order = order)

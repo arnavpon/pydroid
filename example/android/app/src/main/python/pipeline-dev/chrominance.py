@@ -112,11 +112,11 @@ def pipe(f, fr = 30, freq = (0.5, 3.34),
         plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
     
     ibis = sp.get_ibis(peaks)
-
     if split is None:
         return sp.get_hr(ibis)
     else:
         bin_size = len(ibis) // split
+        print('Split results in bins of size:', bin_size)
         return [
             sp.get_hr(ibis[i * bin_size: (i + 1) * bin_size])
             for i in range(split)
@@ -146,20 +146,29 @@ def ieee_pipe(subj, trial, ground_truth_path = 'IBI', freq = (0.5, 3.0), peak_he
     # data path
     data_path = f'channel_data2/ieee-subject_{subj}-trial_{trial}-channel_data.csv'
     hr = pipe(
-        data_path, freq = freq, split = None, peak_height = peak_height,
+        data_path, freq = freq, split = split, peak_height = peak_height,
         moving_avg_window = moving_avg_window, bandpass_order = bandpass_order,
         slice_filter_thresh = slice_filter_thresh, stringent_perc = stringent_perc,
         non_stringent_perc = non_stringent_perc, split_num = split_num, plot = plot
     )
 
-    if verbose:
-        print(f'Subject {subj}, Trial {trial}:')
-        print(f'Ground truth HR from {ground_truth_path}: {np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt)}')
-        print(f'HR from chrominance: {hr}')
+    # if verbose:
+        # print(f'Subject {subj}, Trial {trial}:')
+        # print(f'Ground truth HR from {ground_truth_path}: {np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt)}')
+        # print(f'HR from chrominance: {hr}')
     if plot:
         plt.show()
 
-    return (np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt), hr)
+    if split is None:
+        return (np.mean(gt) if ground_truth_path == "HR" else 60 / np.mean(gt), hr)
+    
+    bin_size = len(gt) // split
+    return ([
+        np.median(gt[i * bin_size: (i + 1) * bin_size])
+        if ground_truth_path == "HR"
+        else 60 / np.median(gt[i * bin_size: (i + 1) * bin_size])
+        for i in range(split)
+    ], hr)
 
 
 def test_variables(using, min_freqs, max_freqs, peak_heights,
@@ -241,13 +250,14 @@ if __name__ == '__main__':
         '006': ['001'],
         '007': ['001'],
     }
-        
+    
+    errs = []
     for subj in using:
         for trial in using[subj]:
             gt, hr = ieee_pipe(
-                subj, trial,
+                subj, trial, split = 12,
                 ground_truth_path = 'HR',
-                freq = (0.5, 3.7),
+                freq = (0.5, 3.166),
                 peak_height = 0.00012,
                 moving_avg_window = 8,
                 bandpass_order = 4,
@@ -256,8 +266,14 @@ if __name__ == '__main__':
                 non_stringent_perc = 55,
                 plot = True
             )
+
+            print(f'Subject {subj}, Trial {trial}:')
+            print(f'Ground truth HR from HR: {np.median(gt)}')# : {gt}')
+            print(f'HR from chrominance: {np.median(hr)}')# : {hr}')
             
-            err = round(abs(gt - hr) / gt * 100, 2)
+            gt_reported = gt if isinstance(gt, float) else np.mean(gt)
+            hr_reported = hr if isinstance(hr, float) else np.mean(hr)
+            err = round(abs(gt_reported - hr_reported) / gt_reported * 100, 2)
             errs.append(err)
             print(f'Error: {err}%')
             print()

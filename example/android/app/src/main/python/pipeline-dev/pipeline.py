@@ -107,4 +107,5 @@ def pipeline(path = DEFAULT_CSV_NAME,
 
 
 if __name__ == '__main__':
-    pipeline(path = './channel_data/ieee-subject_001-trial_001-channel_data.csv')
+    hr = pipeline(path = './channel_data/ieee-subject_002-trial_001-channel_data.csv', lim = 800)
+    print('HR = ', hr)

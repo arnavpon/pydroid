@@ -56,6 +56,11 @@ shape_predictor_68_face_landmarks.dat
 *subj*
 android/app/src/main/python/pipeline-dev/validation_data/
 android/app/src/main/python/pipeline-dev/mtcnn.pb
+*test*
+*sam*
+*models*
+*SkinDetector*
+*pos_raw*
 
 lib/YUV_2_RGB/
 

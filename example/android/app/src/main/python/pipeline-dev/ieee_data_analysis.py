@@ -104,6 +104,8 @@ def validate(sub_trials,
 
 if __name__ == '__main__':
 
+    # Sub 3, trial 1: 78.26086956521739
+
     sub_trials = {
         'subject_001': ['trial_001'],
         'subject_002': ['trial_001', 'trial_002', 'trial_003'],
@@ -116,19 +118,20 @@ if __name__ == '__main__':
     
     for sub in sub_trials:
         for trial in sub_trials[sub]:
-    #         print(f'On {sub}-{trial}')
+            print(f'On {sub}-{trial}')
             ieee = IeeeAnalyzer(sub, trial, channel_data_path = YUV_CHANNEL_DATA_PATH)
             print('Ground truth mean HR from HR vector:', np.mean(ieee.get_hr()))
             print('Ground truth HR from IBIs', 60 / np.mean(ieee.get_ibis()))
+            print()
     #         ieee.get_channels(show_frames = True, S = 150)
 
-            tol = 0.03
-            hr = ieee.ieee_pipeline(
-                moving_average_window = 5,
-                ncvt_tolerance = tol,
-                ncvt_step_size= 10,
-                lim = 800,
-                with_plots = True
-            )
-            print(f'Pipeline HR: {hr}')
-            print()
+            # tol = 0.03
+            # hr = ieee.ieee_pipeline(
+            #     moving_average_window = 5,
+            #     ncvt_tolerance = tol,
+            #     ncvt_step_size= 10,
+            #     lim = 800,
+            #     with_plots = True
+            # )
+            # print(f'Pipeline HR: {hr}')
+            # print()
