@@ -66,7 +66,7 @@ def chrominance(f, fr = 30,
     #return _normalize_signal(signal, 0.001)
     return sp.n_moving_avg(signal, moving_avg_window)
 
-def pipe(f, fr = 30, freq = (0.5, 3.34), 
+def get_signal_and_peaks(f, fr = 30, freq = (0.5, 3.34), 
         peak_height = 0.00025, split = None,
         moving_avg_window = 6, bandpass_order = 4,
         slice_filter_thresh = 2, stringent_perc = 85,
@@ -111,6 +111,22 @@ def pipe(f, fr = 30, freq = (0.5, 3.34),
         ps = peaks[peaks < plot_thresh]
         plt.scatter(ps, signal[ps], marker = 'x', color = 'red')
     
+    return signal, peaks
+    
+
+def pipe(f, fr = 30, freq = (0.5, 3.34), 
+        peak_height = 0.00025, split = None,
+        moving_avg_window = 6, bandpass_order = 4,
+        slice_filter_thresh = 2, stringent_perc = 85,
+        non_stringent_perc = 75, split_num = 4, plot = False):
+    
+    _, peaks = get_signal_and_peaks(
+        f, fr, freq, peak_height, split,
+        moving_avg_window, bandpass_order,
+        slice_filter_thresh, stringent_perc,
+        non_stringent_perc, split_num, plot
+    )
+
     ibis = sp.get_ibis(peaks)
     if split is None:
         return sp.get_hr(ibis)
@@ -121,6 +137,7 @@ def pipe(f, fr = 30, freq = (0.5, 3.34),
             sp.get_hr(ibis[i * bin_size: (i + 1) * bin_size])
             for i in range(split)
         ]
+
 
 def ieee_pipe(subj, trial, ground_truth_path = 'IBI', freq = (0.5, 3.0), peak_height = 0.00025, split = None,
         moving_avg_window = 6, bandpass_order = 4,
