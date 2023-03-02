@@ -16,9 +16,14 @@ def chrominance(f, fr = 30,
 
     df = pd.read_csv(f)
     r, g, b = df['r'].to_numpy(), df['g'].to_numpy(), df['b'].to_numpy()
+
+    orig_len = len(r)
+    nan_indices = [i for i, x in enumerate(r) if np.isnan(x)]
+    r, g, b = r[~np.isnan(r)], g[~np.isnan(g)], b[~np.isnan(b)]
     
-    quart = len(r) // split_num
-    r, g, b = r[quart: -quart], g[quart: -quart], b[quart: -quart]
+    if split_num is not None:
+        quart = len(r) // split_num
+        r, g, b = r[quart: -quart], g[quart: -quart], b[quart: -quart]
 
     # === skin tone normalization ===
     def tonenorm(v):
@@ -64,20 +69,35 @@ def chrominance(f, fr = 30,
         return normalized_signal
 
     #return _normalize_signal(signal, 0.001)
-    return sp.n_moving_avg(signal, moving_avg_window)
+    # return sp.n_moving_avg(signal, moving_avg_window)
 
-def get_signal_and_peaks(f, fr = 30, freq = (0.5, 3.34), 
+    def _add_nans_back():
+        new_signal = np.zeros(orig_len)
+
+        i = 0
+        j = 0
+        while i < len(new_signal):
+            
+            val = signal[j]
+            while i in nan_indices:
+                new_signal[i] = np.nan
+                i += 1
+            
+            new_signal[i] = val
+            i += 1
+            j += 1
+        
+        return new_signal
+
+    return _add_nans_back()
+
+
+def my_get_peaks(signal, fr = 30, freq = (0.5, 3.34), 
         peak_height = 0.00025, split = None,
         moving_avg_window = 6, bandpass_order = 4,
         slice_filter_thresh = 2, stringent_perc = 85,
         non_stringent_perc = 75, split_num = 4, plot = False):
 
-    signal = chrominance(f, fr, freq, moving_avg_window, bandpass_order, split_num)
-    if signal is None:
-        return None
-    
-
-    # === Peaks ===
     def _filter_peaks(peaks, perc1, perc2):
         peaks = np.array([p for p in peaks if signal[p] >= np.percentile(signal, perc2)])   
         
@@ -102,7 +122,24 @@ def get_signal_and_peaks(f, fr = 30, freq = (0.5, 3.34),
         peaks, _ = find_peaks(signal, height = peak_height, distance = min_dist)
         peaks = _filter_peaks(peaks, perc1, perc2)
         return peaks
-    peaks = _get_peaks(stringent_perc, non_stringent_perc, with_min_dist = True)
+
+    return _get_peaks(stringent_perc, non_stringent_perc, with_min_dist = True)
+
+
+def get_signal_and_peaks(f, fr = 30, freq = (0.5, 3.34), 
+        peak_height = 0.00025, split = None,
+        moving_avg_window = 6, bandpass_order = 4,
+        slice_filter_thresh = 2, stringent_perc = 85,
+        non_stringent_perc = 75, split_num = 4, plot = False):
+
+    signal = chrominance(f, fr, freq, moving_avg_window, bandpass_order, split_num)
+    if signal is None:
+        return None
+    
+
+    # === Peaks ===
+    
+    peaks = my_get_peaks(signal, fr, freq, slice_filter_thresh, peak_height, stringent_perc, non_stringent_perc)
 
     # === end peaks ===
     if plot:

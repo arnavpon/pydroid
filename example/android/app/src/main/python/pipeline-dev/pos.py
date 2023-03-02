@@ -96,7 +96,8 @@ def acquire_raw_signals(path, framerate = 30, with_tracker = True, color_filter 
     vid = cv2.VideoCapture(path)
 
     frame_num = 0
-    success, img, bbox = _get_bbox(vid, frame_num, tracker = None)
+    vecs = None
+    success, img, bbox = _get_bbox(vid, vecs, frame_num, tracker = None)
 
     if not success:
         print('Could not read HR.')
@@ -124,14 +125,15 @@ def acquire_raw_signals(path, framerate = 30, with_tracker = True, color_filter 
         else:
             vecs = np.vstack((vecs, np.array([val1, val2, val3])))
 
-        success, img, bbox = _get_bbox(vid, frame_num, tracker = tracker)
+        success, img, bbox = _get_bbox(vid, vecs, frame_num, tracker = tracker)
         frame_num += 1
     
-    vid.release()            
+    vid.release()     
+     
     return vecs
 
 
-def _get_bbox(vid, frame_num, color_filter = cv2.COLOR_BGR2RGB, iter_lim = 100, tracker = None):
+def _get_bbox(vid, vecs, frame_num, color_filter = cv2.COLOR_BGR2RGB, iter_lim = 100, tracker = None):
 
     success, frame = vid.read()
     if not success:
@@ -139,7 +141,7 @@ def _get_bbox(vid, frame_num, color_filter = cv2.COLOR_BGR2RGB, iter_lim = 100, 
     img = cv2.cvtColor(frame, color_filter)
 
     if tracker is None:
-        return _get_bbox_w_model(vid, img, color_filter, iter_lim, frame_num)
+        return _get_bbox_w_model(vid, img, vecs, color_filter, iter_lim, frame_num)
     
     else:
         
@@ -154,7 +156,7 @@ def _get_bbox(vid, frame_num, color_filter = cv2.COLOR_BGR2RGB, iter_lim = 100, 
         return success, img, {'x1': start_x, 'y1': start_y, 'x2': end_x, 'y2': end_y}
 
 
-def _get_bbox_w_model(vid, img, color_filter, iter_lim, frame_num):
+def _get_bbox_w_model(vid, img, vecs, color_filter, iter_lim, frame_num):
 
     # search the first iter_lim frames for a face
     bbox_dict = None
@@ -165,8 +167,15 @@ def _get_bbox_w_model(vid, img, color_filter, iter_lim, frame_num):
         bounding_boxes, _ = imgProcessing.detect_faces(img)
         
         if len(bounding_boxes) == 0:
+            
+            if vecs is None:
+                vecs = np.array([None, None, None])
+            else:
+                vecs = np.vstack((vecs, np.array([None, None, None])))
+            
             success, frame = vid.read()
             frame_num += 1
+            
             if success:
                 img = cv2.cvtColor(frame, color_filter)
             else:
@@ -213,9 +222,6 @@ def _get_frame_vector(masked_face, mask):
 
 if __name__ == '__main__':
     v = acquire_raw_signals(DEFAULT_PATH)
-    print(v.shape)
-    plt.plot(v)
-    plt.show()
     # v = preprocess(v)
     # print(v.shape)
     # plt.plot(v)

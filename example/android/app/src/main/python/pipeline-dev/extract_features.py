@@ -6,21 +6,25 @@ from sklearn.mixture import GaussianMixture
 from scipy.stats import skew, kurtosis
 from tqdm import tqdm
 
-from chrominance import get_signal_and_peaks
+from wavelet_util import *
 
 
 def get_features(subj, trial):
+    signal, peaks = good_get_signal_peaks(subj, trial)
+    return get_features_from_signals_peaks(signal, peaks)
 
-    data_path = f'channel_data2/ieee-subject_{subj}-trial_{trial}-channel_data.csv'
-    signal, peaks = get_signal_and_peaks(
-        data_path
-    )
+def get_features_from_signals_peaks(signal, peaks): 
 
-    features = extract_peak_features(signal, peaks)
+    def _normalize_signal(signal, target_amplitude):
+        max_amplitude = np.max(np.abs(signal))
+        scale_factor = target_amplitude / max_amplitude
+        normalized_signal = signal * scale_factor
+        return normalized_signal
+    
+    norm = _normalize_signal(signal, 1)
+    features = extract_peak_features(norm, peaks)
     features = normalize_data(features)
-    for j in range(features.shape[1]):
-        print(np.mean(features[:, j]), np.std(features[:, j]))
-
+    return features
 
 def extract_peak_features(sig, peaks):
     features = []
@@ -92,4 +96,5 @@ def normalize_data(data):
 
 if __name__ == '__main__':
 
-    get_features('001', '001')
+    feat = get_features('001', '001')
+    print(feat.shape)
