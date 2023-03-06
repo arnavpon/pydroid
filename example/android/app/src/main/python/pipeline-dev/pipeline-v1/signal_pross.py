@@ -6,9 +6,10 @@ March 6, 2023
 
 import numpy as np
 from scipy.signal import butter, filtfilt
+from typing import Tuple
 
 
-def bandpass(signal: np.ndarray, fr: int, freq: tuple(float, float), order: int):
+def bandpass(signal: np.ndarray, fr: int, freq: Tuple[float, float], order: int):
     """
     Apply bandpass filter to the given signal.
 
@@ -71,3 +72,12 @@ def detrend_w_poly(signal: np.ndarray, degree: int = 3):
     poly = np.polyfit(x, signal, degree)
     curve = np.poly1d(poly)(x)
     return signal - curve
+
+def get_ibis(peaks, fr = 30):
+    ibis = []
+    for i in range(1, len(peaks)):
+        ibis.append((peaks[i] - peaks[i - 1]) / fr)
+    return ibis
+
+def get_hr(ibis):
+    return 60 / np.mean(ibis)
