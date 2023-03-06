@@ -42,7 +42,7 @@ if __name__ == '__main__':
         # plt.scatter(peaks, [signal[p] for p in peaks], marker='x', c='r')
         # plt.show()
         
-        den = wavelet_denoise(signal, wavelet=wave, level = 2)[0]
+        den = wavelet_denoise(signal, wavelet = wave, level = 2)[0]
         cA_peaks = get_wavelet_peaks(den)
         # targ = 70
         # perc = np.percentile(den, targ)
@@ -63,8 +63,13 @@ if __name__ == '__main__':
         if verbose:
             print('HR from cA: ', get_hr(cA_peaks, factor = len(signal) / len(den)))
         if plot:
-            plt.plot(den)
-            plt.scatter(cA_peaks, [den[p] for p in cA_peaks], marker='x', c='r')
+            plt.plot(signal[0: len(den)])
+            new = []
+            for e in den:
+                new.append(e)
+                new.append(e)
+            plt.plot(new)
+            # plt.scatter(cA_peaks, [den[p] for p in cA_peaks], marker='x', c='r')
         
         
 
@@ -89,7 +94,7 @@ if __name__ == '__main__':
     errs = []
     for subj in ['001', '002', '003', '004', '005', '006', '007']:
         for trial in ['001']:
-            err = test(subj, trial, 'db10', signal_start = 2000, plot = True)
+            err = test(subj, trial, 'db2', signal_start = 2000, plot = True)
             errs.append(err)
     
     print('Average Error: ', np.mean(errs))
