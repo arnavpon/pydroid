@@ -6,9 +6,10 @@ Refactored March 6, 2023
 
 import numpy as np
 import pandas as pd
+from typing import Tuple
 
 # local modules
-from signal_pross import bandpass, n_moving_avg
+from signal_pross import bandpass
 
 
 CHROM_SETTINGS = {
@@ -33,7 +34,7 @@ G_COEFF = 0.5121
 B_COEFF = 0.3841
 
 
-def chrominance(path, settings = CHROM_SETTINGS):
+def chrominance(path: str, settings: dict = CHROM_SETTINGS, bounds: Tuple[int, int] = (0, -1)):
     """"
     Apply the chrominance method to raw RGB data to extract and return
     a raw rPPG signal.
@@ -45,7 +46,7 @@ def chrominance(path, settings = CHROM_SETTINGS):
             raise ValueError(f'Settings must contain value for key {key}.')
 
     # get raw RGB signals
-    r, g, b = _get_rgb_signals(path)
+    r, g, b = _get_rgb_signals(path, bounds)
 
     # normalize skin tones
     def _tonenorm(v):
@@ -72,10 +73,10 @@ def chrominance(path, settings = CHROM_SETTINGS):
     alpha = np.std(xf) / np.std(yf)
     signal = (3 * (1 - alpha / 2) * rf) - 2 * (1 + alpha / 2) * gf + ((3 * alpha / 2) * bf)
 
-    return n_moving_avg(signal, settings['moving_avg_window'])
+    return signal
 
 
-def _get_rgb_signals(path):
+def _get_rgb_signals(path: str, bounds: Tuple[int, int]):
     """"
     Get the raw RGB signals from a CSV file.
     """
@@ -85,7 +86,7 @@ def _get_rgb_signals(path):
         if col not in df.columns:
             raise ValueError(f'Column {col} not found in CSV file.')
     
-    r = df['r'].to_numpy()
-    g = df['g'].to_numpy()
-    b = df['b'].to_numpy()
+    r = df['r'].to_numpy()[bounds[0]: bounds[1]]
+    g = df['g'].to_numpy()[bounds[0]: bounds[1]]
+    b = df['b'].to_numpy()[bounds[0]: bounds[1]]
     return r, g, b
