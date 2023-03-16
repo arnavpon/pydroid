@@ -142,7 +142,7 @@ if __name__ == '__main__':
         truth.align_rgb_bvp()
         raw_bvp_settings['fr'] = truth.bvp_freq
 
-        interval = 15 * 30
+        interval = 20 * 30
         errs = []
         for i in range(1000, len(truth.rgb) - 1000, interval):
             # print(f'Starting at {i}:')
