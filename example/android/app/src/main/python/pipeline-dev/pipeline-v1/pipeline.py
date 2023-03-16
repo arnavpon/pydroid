@@ -8,13 +8,17 @@ from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_amplitude_to_
 from truth import IeeeGroundTruth
 from wavelet import apply_wavelet
 
+import sys
+peak_height = float(sys.argv[1]) if len(sys.argv) > 1 else 0.25
+print(f'Peak height: {peak_height}\n')
+
 
 SETTINGS = {
     'fr': 30,  # frame rate
     'freq': (0.5, 3.34),  # bandpass frequency range
     'bandpass_order': 4,  # bandpass filter order
     'moving_avg_window': 5,  # moving average window size for smoothing
-    'peak_height': 0.4,  # min peak height for peak detection
+    'peak_height': peak_height,  # min peak height for peak detection
     'slice_filter_thresh': 2,  # min number of peaks allowed in a slice of the signal
     'stringent_perc': 85,  # more stringent percentile for peak filtering
     'non_stringent_perc': 75,  # less stringent percentile for peak filtering
@@ -95,7 +99,7 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
 
     if plot:
         plt.plot(signal)
-        plt.scatter(peaks, [signal[p] for p in peaks], marker = 'x', c = 'r')
+        plt.scatter([p[0] for p in peaks], [signal[p[0]] for p in peaks], marker = 'x', c = 'r')
         plt.title('Peaks')
         plt.show()
 
@@ -155,6 +159,8 @@ if __name__ == '__main__':
     raw_bvp_settings = sett.copy()
 
     S = 5
+    E1=[]
+    E2=[]
     for s in range(1, 8):
         print(f'Subject {s}:')
 
@@ -191,3 +197,10 @@ if __name__ == '__main__':
             print(f'Average error w/o valleys: {round(np.mean(errs1))} from {len(errs1)} samples')
             print(f'Average error w/ valleys: {round(np.mean(errs2))} from {len(errs2)} samples')
             print()
+
+            E1.append(np.mean(errs1))
+            E2.append(np.mean(errs2))
+
+    print('MAINS:')
+    print('Average error w/o valleys:', round(np.mean(E1)))
+    print('Average error w/ valleys:', round(np.mean(E2)))
