@@ -52,6 +52,6 @@ def _filter_peaks(signal: np.ndarray, peaks: np.ndarray, fr: int,
         if len(slce) > slice_filter_thresh:
             to_remove = [i for i in range(len(slce)) if signal[slce[i]] < np.percentile(signal[slce], perc1)]
             peaks = peaks[~np.isin(peaks, [slce[i] for i in to_remove])]
-            removed += len(to_remove)
+            # removed += len(to_remove)
     
     return peaks

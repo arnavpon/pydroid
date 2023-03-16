@@ -40,7 +40,7 @@ def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, 
         plt.show()
 
     # === Apply moving average to raw rPPG ===
-    # signal = n_moving_avg(signal, window = 10)
+    signal = n_moving_avg(signal, settings['moving_avg_window'])
 
     if plot:
         plt.plot(signal)
@@ -49,26 +49,28 @@ def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, 
     
     if with_wavelet:
         len_before = len(signal)
-        signal = apply_wavelet(signal, wave = 'db1', level = 1)
+        signal = apply_wavelet(signal, wave = 'db2', level = 1)
         len_after = len(signal)
-        wavelet_mult = round(len_before / len_after)
+        wavelet_mult = len_after / len_before
         if plot:
             plt.plot(signal)
             plt.title('Wavelet rPPG')
             plt.show()
     else: wavelet_mult = 1
 
+    new_fr = int(settings['fr'] * wavelet_mult)
+
     # === Get peaks from smoothed rPPG ===
     peaks = get_peaks(
         signal,
-        settings['fr'] * wavelet_mult,
+        new_fr,
         settings['freq'][1],
         settings['peak_height'],
         settings['slice_filter_thresh'],
         settings['stringent_perc'],
         settings['non_stringent_perc'],
         with_min_dist = True,
-        with_additional_filtering = False
+        with_additional_filtering = True
     )
 
     if plot:
@@ -78,7 +80,7 @@ def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, 
         plt.show()
 
     # === Get IBI and HR from peaks ===
-    ibis = get_ibis(peaks, settings['fr'])
+    ibis = get_ibis(peaks, new_fr)
     hr = get_hr(ibis)
     # print(f'HR: {round(hr)}')
 
@@ -132,6 +134,7 @@ if __name__ == '__main__':
 
     raw_bvp_settings = sett.copy()
 
+    S = 5
     for s in range(1, 8):
         print(f'Subject {s}:')
 
@@ -142,22 +145,19 @@ if __name__ == '__main__':
         interval = 15 * 30
         errs = []
         for i in range(1000, len(truth.rgb) - 1000, interval):
-            try:
-                # print(f'Starting at {i}:')
-                sig_interval = [i, i + interval]
-                truth_interval = [truth.align_indices(sig_interval[0]), truth.align_indices(sig_interval[1])]
+            # print(f'Starting at {i}:')
+            sig_interval = [i, i + interval]
+            truth_interval = [truth.align_indices(sig_interval[0]), truth.align_indices(sig_interval[1])]
 
-                rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
-                bvp = normalize_to_amplitude(truth.bvp[truth_interval[0]: truth_interval[1]], 1)
-                signal, est_hr = pipeline(rgb, with_wavelet = True, plot = False)
-                truth_signal, truth_hr = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
-                
-                # print('Estimated HR:', est_hr)
-                # print('Truth HR:', truth_hr)
-                # print()
-                errs.append(est_hr - truth_hr)
-
-            except Exception as e: print('Error', e)
+            rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
+            bvp = normalize_to_amplitude(truth.bvp[truth_interval[0]: truth_interval[1]], 1)
+            signal, est_hr = pipeline(rgb, with_wavelet = True, plot = False)
+            truth_signal, truth_hr = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
+            
+            # print('Estimated HR:', est_hr)
+            # print('Truth HR:', truth_hr)
+            # print()
+            errs.append(est_hr - truth_hr)
 
         if len(errs) > 0:
             print('Sum of the error:', sum(errs))
