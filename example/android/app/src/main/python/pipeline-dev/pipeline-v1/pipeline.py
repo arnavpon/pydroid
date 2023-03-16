@@ -6,6 +6,7 @@ from chrominance import chrominance, CHROM_SETTINGS as sett
 from peaks import get_peaks
 from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_to_amplitude
 from truth import IeeeGroundTruth
+from wavelet import apply_wavelet
 
 
 SETTINGS =CHROM_SETTINGS = {
@@ -20,7 +21,7 @@ SETTINGS =CHROM_SETTINGS = {
 }
 
     
-def pipeline(sig: str or np.array, settings: dict = sett, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
+def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
 
     if isinstance(sig, str):
         signal = chrominance(
@@ -39,17 +40,28 @@ def pipeline(sig: str or np.array, settings: dict = sett, bounds: Tuple[int, int
         plt.show()
 
     # === Apply moving average to raw rPPG ===
-    signal = n_moving_avg(signal, window = 10)
+    # signal = n_moving_avg(signal, window = 10)
 
     if plot:
         plt.plot(signal)
         plt.title('Smoothed rPPG')
         plt.show()
+    
+    if with_wavelet:
+        len_before = len(signal)
+        signal = apply_wavelet(signal, wave = 'db1', level = 1)
+        len_after = len(signal)
+        wavelet_mult = round(len_before / len_after)
+        if plot:
+            plt.plot(signal)
+            plt.title('Wavelet rPPG')
+            plt.show()
+    else: wavelet_mult = 1
 
     # === Get peaks from smoothed rPPG ===
     peaks = get_peaks(
         signal,
-        settings['fr'],
+        settings['fr'] * wavelet_mult,
         settings['freq'][1],
         settings['peak_height'],
         settings['slice_filter_thresh'],
@@ -137,7 +149,7 @@ if __name__ == '__main__':
 
                 rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
                 bvp = normalize_to_amplitude(truth.bvp[truth_interval[0]: truth_interval[1]], 1)
-                signal, est_hr = pipeline(rgb, plot = False)
+                signal, est_hr = pipeline(rgb, with_wavelet = True, plot = False)
                 truth_signal, truth_hr = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
                 
                 # print('Estimated HR:', est_hr)

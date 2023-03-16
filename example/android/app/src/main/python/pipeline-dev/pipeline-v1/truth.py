@@ -33,6 +33,12 @@ class IeeeGroundTruth:
             header = None
         ).to_numpy()
 
+        # get ibi
+        self.ibis = pd.read_csv(
+            f'validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/IBI.csv',
+            header = None
+        ).to_numpy()[1: , 1].flatten()
+
         # get the event markers
         event_markers = pd.read_csv(
             f'validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/tags.csv'
@@ -45,12 +51,6 @@ class IeeeGroundTruth:
 
         self.rgb = rgb[start_frame: start_frame + int(end_point * 30) + 5]
         self.bvp = bvp[int(start_gap * 64): int((start_gap + end_point) * 64)]
-
-    def downsample_bvp(self):
-        
-        self.downsample_factor = self.bvp_freq // self.rgb_freq
-        num_samples = int(round(len(self.bvp) / self.downsample_factor))
-        self.downsampled_bvp = self.bvp[::self.downsample_factor][:num_samples]
     
     def align_indices(self, rgb_index):
         # downsampled_fr = float(self.bvp_freq / self.downsample_factor)
