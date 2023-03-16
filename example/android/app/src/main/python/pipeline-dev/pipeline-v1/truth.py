@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.signal import butter, lfilter, resample
 
 from ieee_video_start_frames import StartFrames
+from signal_pross import normalize_to_amplitude
 
 RGB_RATE = 30
 BVP_RATE = 64
@@ -13,7 +15,10 @@ class IeeeGroundTruth:
     def __init__(self, subject, trial):
         self.subject = subject
         self.trial = trial
+        
         self.directory = 'channel_data'
+        self.rgb_freq = RGB_RATE
+        self.bvp_freq = BVP_RATE
     
     def align_rgb_bvp(self):
 
@@ -38,24 +43,17 @@ class IeeeGroundTruth:
 
         start_frame = StartFrames[self.subject][self.trial]
 
-        rgb_align = rgb[start_frame: start_frame + int(end_point * 30) + 5]
-        bvp_align = bvp[int(start_gap * 64): int((start_gap + end_point) * 64)]
+        self.rgb = rgb[start_frame: start_frame + int(end_point * 30) + 5]
+        self.bvp = bvp[int(start_gap * 64): int((start_gap + end_point) * 64)]
 
-        return rgb_align, bvp_align
-
-
-    @staticmethod
-    def bvp_to_ibi(self, bvp):
-        pass
-
-
-if __name__ == '__main__':
-    for S in StartFrames:
-        a, b = IeeeGroundTruth(S, 1).align_rgb_bvp()
-        plt.plot(b[5000: 7000])
-        plt.show()
-        # print(S, 1)
-        # print(a.shape[0] / RGB_RATE)
-        # print(b.shape[0] / BVP_RATE)
-        # print()
-
+    def downsample_bvp(self):
+        
+        self.downsample_factor = self.bvp_freq // self.rgb_freq
+        num_samples = int(round(len(self.bvp) / self.downsample_factor))
+        self.downsampled_bvp = self.bvp[::self.downsample_factor][:num_samples]
+    
+    def align_indices(self, rgb_index):
+        # downsampled_fr = float(self.bvp_freq / self.downsample_factor)
+        # downsampled_to_fgb_freq_ratio = downsampled_fr / self.rgb_freq
+        # return int(rgb_index * downsampled_to_fgb_freq_ratio)
+        return int(rgb_index * (self.bvp_freq / self.rgb_freq))

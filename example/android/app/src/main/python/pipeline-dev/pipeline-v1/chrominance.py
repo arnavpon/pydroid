@@ -29,7 +29,7 @@ G_COEFF = 0.5121
 B_COEFF = 0.3841
 
 
-def chrominance(path: str, settings: dict = CHROM_SETTINGS, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
+def chrominance(sig: str or np.array, settings: dict = CHROM_SETTINGS, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
     """"
     Apply the chrominance method to raw RGB data to extract and return
     a raw rPPG signal.
@@ -41,7 +41,12 @@ def chrominance(path: str, settings: dict = CHROM_SETTINGS, bounds: Tuple[int, i
             raise ValueError(f'Settings must contain value for key {key}.')
 
     # get raw RGB signals
-    r, g, b = _get_rgb_signals(path, bounds)
+    if isinstance(sig, str):
+        r, g, b = _get_rgb_signals(sig, bounds)
+    else:
+        r = sig[:, 0]
+        g = sig[:, 1]
+        b = sig[:, 2]
     if plot:
         _plot_signals({'r': r, 'g': g, 'b': b}, 'Raw RGB Signals')
     
