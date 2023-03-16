@@ -4,7 +4,6 @@ import pandas as pd
 from scipy.signal import butter, lfilter, resample
 
 from ieee_video_start_frames import StartFrames
-from signal_pross import normalize_to_amplitude
 
 RGB_RATE = 30
 BVP_RATE = 64

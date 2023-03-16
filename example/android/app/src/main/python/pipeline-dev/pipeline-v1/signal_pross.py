@@ -30,14 +30,19 @@ def bandpass(signal: np.ndarray, fr: int, freq: Tuple[float, float], order: int)
     filtered = filtfilt(b, a, signal)
     return filtered
     
-def normalize_to_amplitude(signal: np.ndarray, target_amplitude: float):
+def normalize_amplitude_to_1(signal: np.ndarray):
     """
     Normalize given signal to given amplitude.
     """
+
+    sigmax = abs(max(signal))
+    sigmin = abs(min(signal))
     
-    sig_max = np.max(np.abs(signal))
-    scale_factor = target_amplitude / sig_max
-    return signal * scale_factor
+    return np.array([
+        v / sigmax if v > 0 else v / sigmin
+        for v in signal
+    ])
+
 
 
 def n_moving_avg(signal: np.ndarray, window: int = 5):
@@ -73,10 +78,22 @@ def detrend_w_poly(signal: np.ndarray, degree: int = 3):
     curve = np.poly1d(poly)(x)
     return signal - curve
 
-def get_ibis(peaks, fr = 30):
+def get_ibis(peaks, fr = 30, with_valleys = False):
     ibis = []
     for i in range(1, len(peaks)):
-        ibis.append((peaks[i] - peaks[i - 1]) / fr)
+
+        if with_valleys:
+            peak_diff = peaks[i][0] - peaks[i - 1][0]
+        else: 
+            peak_diff = peaks[i] - peaks[i - 1]
+        
+        ibi = peak_diff / fr
+
+        if with_valleys and peaks[i][1] != peaks[i - 1][1]:
+            ibi *= 2
+        
+        ibis.append(ibi)
+
     return ibis
 
 def get_hr(ibis):

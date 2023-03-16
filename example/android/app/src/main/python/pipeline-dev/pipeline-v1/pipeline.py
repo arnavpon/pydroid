@@ -4,24 +4,24 @@ from typing import Tuple
 
 from chrominance import chrominance, CHROM_SETTINGS as sett
 from peaks import get_peaks
-from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_to_amplitude
+from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_amplitude_to_1
 from truth import IeeeGroundTruth
 from wavelet import apply_wavelet
 
 
-SETTINGS =CHROM_SETTINGS = {
+SETTINGS = {
     'fr': 30,  # frame rate
     'freq': (0.5, 3.34),  # bandpass frequency range
     'bandpass_order': 4,  # bandpass filter order
     'moving_avg_window': 5,  # moving average window size for smoothing
-    'peak_height': 0.00025,  # min peak height for peak detection
+    'peak_height': 0.4,  # min peak height for peak detection
     'slice_filter_thresh': 2,  # min number of peaks allowed in a slice of the signal
     'stringent_perc': 85,  # more stringent percentile for peak filtering
     'non_stringent_perc': 75,  # less stringent percentile for peak filtering
 }
 
     
-def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
+def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = False, with_valleys = False, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
 
     if isinstance(sig, str):
         signal = chrominance(
@@ -60,6 +60,8 @@ def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, 
 
     new_fr = int(settings['fr'] * wavelet_mult)
 
+    signal = normalize_amplitude_to_1(signal)
+
     # === Get peaks from smoothed rPPG ===
     peaks = get_peaks(
         signal,
@@ -73,6 +75,24 @@ def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, 
         with_additional_filtering = True
     )
 
+    if with_valleys:
+        valleys = get_peaks(
+            -signal,
+            new_fr,
+            settings['freq'][1],
+            settings['peak_height'],
+            settings['slice_filter_thresh'],
+            settings['stringent_perc'],
+            settings['non_stringent_perc'],
+            with_min_dist = True,
+            with_additional_filtering = True
+        )
+
+        peaks = sorted(
+            [(p, 'p') for p in peaks] + [(v, 'v') for v in valleys],
+            key = lambda t: t[0]
+        )
+
     if plot:
         plt.plot(signal)
         plt.scatter(peaks, [signal[p] for p in peaks], marker = 'x', c = 'r')
@@ -80,7 +100,7 @@ def pipeline(sig: str or np.array, settings: dict = sett, with_wavelet = False, 
         plt.show()
 
     # === Get IBI and HR from peaks ===
-    ibis = get_ibis(peaks, new_fr)
+    ibis = get_ibis(peaks, new_fr, with_valleys = with_valleys)
     hr = get_hr(ibis)
     # print(f'HR: {round(hr)}')
 
@@ -143,24 +163,31 @@ if __name__ == '__main__':
         raw_bvp_settings['fr'] = truth.bvp_freq
 
         interval = 20 * 30
-        errs = []
+        errs1 = []
+        errs2 = []
         for i in range(1000, len(truth.rgb) - 1000, interval):
             # print(f'Starting at {i}:')
             sig_interval = [i, i + interval]
             truth_interval = [truth.align_indices(sig_interval[0]), truth.align_indices(sig_interval[1])]
 
             rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
-            bvp = normalize_to_amplitude(truth.bvp[truth_interval[0]: truth_interval[1]], 1)
-            signal, est_hr = pipeline(rgb, with_wavelet = True, plot = False)
-            truth_signal, truth_hr = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
+            bvp = normalize_amplitude_to_1(truth.bvp[truth_interval[0]: truth_interval[1]])
+            
+            _, est_hr = pipeline(rgb, with_wavelet = True, plot = False)
+            _, est_hr2 = pipeline(rgb, with_wavelet = True, with_valleys = True, plot = False)
+            _, truth_hr = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
             
             # print('Estimated HR:', est_hr)
             # print('Truth HR:', truth_hr)
             # print()
-            errs.append(est_hr - truth_hr)
+            errs1.append(est_hr - truth_hr)
+            errs2.append(est_hr2 - truth_hr)
 
-        if len(errs) > 0:
-            print('Sum of the error:', sum(errs))
-            errs = [abs(e) for e in errs]
-            print(f'Average error: {round(np.mean(errs))} from {len(errs)} samples')
+        if len(errs1) > 0:
+            print('Sum of the w/o valleys error:', sum(errs1))
+            print('Sum of the w/ valleys error:', sum(errs2))
+            errs1 = [abs(e) for e in errs1]
+            errs2 = [abs(e) for e in errs2]
+            print(f'Average error w/o valleys: {round(np.mean(errs1))} from {len(errs1)} samples')
+            print(f'Average error w/ valleys: {round(np.mean(errs2))} from {len(errs2)} samples')
             print()
