@@ -4,7 +4,7 @@ from typing import Tuple
 
 from chrominance import chrominance, CHROM_SETTINGS as sett
 from peaks import get_peaks
-from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_amplitude_to_1
+from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_amplitude_to_1, get_hrv
 from truth import IeeeGroundTruth
 from wavelet import apply_wavelet
 
@@ -106,6 +106,8 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
     # === Get IBI and HR from peaks ===
     ibis = get_ibis(peaks, new_fr, with_valleys = with_valleys)
     hr = get_hr(ibis)
+
+    hrv = get_hrv(ibis)
     # print(f'HR: {round(hr)}')
 
     if plot:
@@ -113,7 +115,7 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
         plt.title('IBIs')
         plt.show()
     
-    return signal, hr
+    return signal, hr, hrv
 
 
 def pipeline_raw(signal, smoothing_window = None, settings: dict = sett, plot: bool = False):
@@ -144,6 +146,7 @@ def pipeline_raw(signal, smoothing_window = None, settings: dict = sett, plot: b
     # === Get IBI and HR from peaks ===
     ibis = get_ibis(peaks, fr = settings['fr'])
     hr = get_hr(ibis)
+    hrv = get_hrv(ibis)
     # print(f'HR: {round(hr)}')
 
     if plot:
@@ -151,7 +154,7 @@ def pipeline_raw(signal, smoothing_window = None, settings: dict = sett, plot: b
         plt.title('IBIs')
         plt.show()
     
-    return signal, hr
+    return signal, hr, hrv
 
 
 if __name__ == '__main__':
@@ -179,12 +182,13 @@ if __name__ == '__main__':
             rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
             bvp = normalize_amplitude_to_1(truth.bvp[truth_interval[0]: truth_interval[1]])
             
-            _, est_hr = pipeline(rgb, with_wavelet = True, plot = False)
-            _, est_hr2 = pipeline(rgb, with_wavelet = True, with_valleys = True, plot = False)
-            _, truth_hr = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
+            _, est_hr, est_hrv1 = pipeline(rgb, with_wavelet = True, plot = False)
+            _, est_hr2, est_hrv2 = pipeline(rgb, with_wavelet = True, with_valleys = True, plot = False)
+            _, truth_hr, truth_hrv = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
             
-            # print('Estimated HR:', est_hr)
-            # print('Truth HR:', truth_hr)
+            # print('Estimated HRV w/o valleys:', round(est_hrv1 * 1000, 2))
+            # print('Estimated HRV w/ valleys:', round(est_hrv2 * 1000, 2))
+            # print('Truth HRV:', round(truth_hrv * 1000, 2))
             # print()
             errs1.append(est_hr - truth_hr)
             errs2.append(est_hr2 - truth_hr)

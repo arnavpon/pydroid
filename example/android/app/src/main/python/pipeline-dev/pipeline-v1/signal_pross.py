@@ -98,3 +98,11 @@ def get_ibis(peaks, fr = 30, with_valleys = False):
 
 def get_hr(ibis):
     return 60 / np.mean(ibis)
+
+
+def get_hrv(ibis):
+    differences = np.diff(ibis)
+    squared_diffs = np.square(differences)
+    mean_squared_diffs = np.mean(squared_diffs)
+    rmssd = np.sqrt(mean_squared_diffs)
+    return rmssd
