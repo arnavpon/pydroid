@@ -44,7 +44,6 @@ def normalize_amplitude_to_1(signal: np.ndarray):
     ])
 
 
-
 def n_moving_avg(signal: np.ndarray, window: int = 5):
     """
     Simple moving window smoothing for a given signal.
@@ -106,3 +105,22 @@ def get_hrv(ibis):
     mean_squared_diffs = np.mean(squared_diffs)
     rmssd = np.sqrt(mean_squared_diffs)
     return rmssd
+
+
+def get_hr_from_fourier(signal, fr, min_freq = 0.7, max_freq = 3.0):
+    
+    signal_size = len(signal)
+    signal = signal.flatten()
+    
+    fft_data = np.fft.rfft(signal) # FFT
+    fft_data = np.abs(fft_data)
+
+    freq = np.fft.rfftfreq(signal_size, 1. / fr) # Frequency data
+
+    inds = np.where((freq < min_freq) | (freq > max_freq))[0]
+    fft_data[inds] = 0
+    bps_freq=60.0*freq
+    max_index = np.argmax(fft_data)
+    fft_data[max_index] = fft_data[max_index]**2
+    HR =  bps_freq[max_index]
+    return HR

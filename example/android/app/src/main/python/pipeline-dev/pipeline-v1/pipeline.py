@@ -4,7 +4,11 @@ from typing import Tuple
 
 from chrominance import chrominance, CHROM_SETTINGS as sett
 from peaks import get_peaks
-from signal_pross import n_moving_avg, get_ibis, get_hr, normalize_amplitude_to_1, get_hrv
+from signal_pross import (
+    n_moving_avg, get_ibis, get_hr, 
+    normalize_amplitude_to_1, get_hrv, 
+    get_hr_from_fourier
+)
 from truth import IeeeGroundTruth
 from wavelet import apply_wavelet
 
@@ -17,7 +21,7 @@ SETTINGS = {
     'fr': 30,  # frame rate
     'freq': (0.5, 3.34),  # bandpass frequency range
     'bandpass_order': 4,  # bandpass filter order
-    'moving_avg_window': 5,  # moving average window size for smoothing
+    'moving_avg_window': 1,  # moving average window size for smoothing
     'peak_height': peak_height,  # min peak height for peak detection
     'slice_filter_thresh': 2,  # min number of peaks allowed in a slice of the signal
     'stringent_perc': 85,  # more stringent percentile for peak filtering
@@ -25,7 +29,8 @@ SETTINGS = {
 }
 
     
-def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = False, with_valleys = False, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
+def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = False, 
+             with_valleys = False, with_fourier = False, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
 
     if isinstance(sig, str):
         signal = chrominance(
@@ -63,8 +68,8 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
     else: wavelet_mult = 1
 
     new_fr = int(settings['fr'] * wavelet_mult)
-
     signal = normalize_amplitude_to_1(signal)
+    fhr = get_hr_from_fourier(signal, new_fr)
 
     # === Get peaks from smoothed rPPG ===
     peaks = get_peaks(
@@ -115,6 +120,9 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
         plt.title('IBIs')
         plt.show()
     
+    if with_fourier:
+        return signal, fhr, hrv
+
     return signal, hr, hrv
 
 
@@ -164,7 +172,7 @@ if __name__ == '__main__':
     S = 5
     E1=[]
     E2=[]
-    for s in range(1, 8):
+    for s in range(S, S+1):
         print(f'Subject {s}:')
 
         truth = IeeeGroundTruth(s, 1)
@@ -182,29 +190,29 @@ if __name__ == '__main__':
             rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
             bvp = normalize_amplitude_to_1(truth.bvp[truth_interval[0]: truth_interval[1]])
             
-            _, est_hr, est_hrv1 = pipeline(rgb, with_wavelet = True, plot = False)
-            _, est_hr2, est_hrv2 = pipeline(rgb, with_wavelet = True, with_valleys = True, plot = False)
+            _, est_hr, est_hrv1 = pipeline(rgb, with_wavelet = True, with_valleys = False, plot = False)
+            _, est_hr2, est_hrv2 = pipeline(rgb, with_wavelet = True, with_valleys = False, with_fourier = True, plot = False)
             _, truth_hr, truth_hrv = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
             
-            # print('Estimated HRV w/o valleys:', round(est_hrv1 * 1000, 2))
-            # print('Estimated HRV w/ valleys:', round(est_hrv2 * 1000, 2))
-            # print('Truth HRV:', round(truth_hrv * 1000, 2))
+            # print('Estimated HR w/o fourier:', est_hr)
+            # print('Estimated HR w/ fourier:', est_hr2)
+            # print('Truth HRV:', truth_hr)
             # print()
             errs1.append(est_hr - truth_hr)
             errs2.append(est_hr2 - truth_hr)
 
         if len(errs1) > 0:
-            print('Sum of the w/o valleys error:', sum(errs1))
-            print('Sum of the w/ valleys error:', sum(errs2))
+            print('Sum of the w/o fourier error:', sum(errs1))
+            print('Sum of the w/ fourier error:', sum(errs2))
             errs1 = [abs(e) for e in errs1]
             errs2 = [abs(e) for e in errs2]
-            print(f'Average error w/o valleys: {round(np.mean(errs1))} from {len(errs1)} samples')
-            print(f'Average error w/ valleys: {round(np.mean(errs2))} from {len(errs2)} samples')
+            print(f'Average error w/o fourier: {round(np.mean(errs1))} from {len(errs1)} samples')
+            print(f'Average error w/ fourier: {round(np.mean(errs2))} from {len(errs2)} samples')
             print()
 
             E1.append(np.mean(errs1))
             E2.append(np.mean(errs2))
 
     print('MAINS:')
-    print('Average error w/o valleys:', round(np.mean(E1)))
-    print('Average error w/ valleys:', round(np.mean(E2)))
+    print('Average error w/o fourier:', round(np.mean(E1)))
+    print('Average error w/ fourier:', round(np.mean(E2)))

@@ -1,5 +1,6 @@
 """
 Implementation of the chrominance method for extracting a raw rPPG signal.
+Taken from "Robust Pulse Rate From Chrominance-Based rPPG" by de Haan and Jeanne.
 
 Refactored March 6, 2023
 """
@@ -23,10 +24,6 @@ CHROM_SETTINGS = {
     'stringent_perc': 85,  # more stringent percentile for peak filtering
     'non_stringent_perc': 75,  # less stringent percentile for peak filtering
 }
-
-R_COEFF = 0.7681
-G_COEFF = 0.5121
-B_COEFF = 0.3841
 
 
 def chrominance(sig: str or np.array, settings: dict = CHROM_SETTINGS, bounds: Tuple[int, int] = (0, -1), plot: bool = False):
@@ -66,11 +63,6 @@ def chrominance(sig: str or np.array, settings: dict = CHROM_SETTINGS, bounds: T
     r_n, g_n, b_n = _tonenorm(r), _tonenorm(g), _tonenorm(b)
     if plot:
         _plot_signals({'r_n': r_n, 'g_n': g_n, 'b_n': b_n}, 'Normalized RGB Signals')
-
-    # apply hardcoded constants from the paper
-    # rs = R_COEFF * r_n
-    # gs = G_COEFF * g_n
-    # bs = B_COEFF * b_n
 
     # combine the terms
     xs = 3*r_n - 2*g_n
