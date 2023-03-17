@@ -21,7 +21,7 @@ SETTINGS = {
     'fr': 30,  # frame rate
     'freq': (0.5, 3.34),  # bandpass frequency range
     'bandpass_order': 4,  # bandpass filter order
-    'moving_avg_window': 1,  # moving average window size for smoothing
+    'moving_avg_window': 6,  # moving average window size for smoothing
     'peak_height': peak_height,  # min peak height for peak detection
     'slice_filter_thresh': 2,  # min number of peaks allowed in a slice of the signal
     'stringent_perc': 85,  # more stringent percentile for peak filtering
@@ -47,6 +47,8 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
         plt.plot(signal)
         plt.title('Raw rPPG')
         plt.show()
+    
+    fhr = get_hr_from_fourier(signal, settings['fr'])
 
     # === Apply moving average to raw rPPG ===
     signal = n_moving_avg(signal, settings['moving_avg_window'])
@@ -69,7 +71,7 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, with_wavelet = Fal
 
     new_fr = int(settings['fr'] * wavelet_mult)
     signal = normalize_amplitude_to_1(signal)
-    fhr = get_hr_from_fourier(signal, new_fr)
+    # fhr = get_hr_from_fourier(signal, new_fr)
 
     # === Get peaks from smoothed rPPG ===
     peaks = get_peaks(
@@ -172,7 +174,8 @@ if __name__ == '__main__':
     S = 5
     E1=[]
     E2=[]
-    for s in range(S, S+1):
+    for s in range(1, 8):
+        if s in [4, 5]: continue
         print(f'Subject {s}:')
 
         truth = IeeeGroundTruth(s, 1)
@@ -190,8 +193,8 @@ if __name__ == '__main__':
             rgb = truth.rgb[sig_interval[0]: sig_interval[1], :]
             bvp = normalize_amplitude_to_1(truth.bvp[truth_interval[0]: truth_interval[1]])
             
-            _, est_hr, est_hrv1 = pipeline(rgb, with_wavelet = True, with_valleys = False, plot = False)
-            _, est_hr2, est_hrv2 = pipeline(rgb, with_wavelet = True, with_valleys = False, with_fourier = True, plot = False)
+            _, est_hr, est_hrv1 = pipeline(rgb, with_wavelet = False, with_valleys = True, plot = False)
+            _, est_hr2, est_hrv2 = pipeline(rgb, with_wavelet = False, with_valleys = False, with_fourier = True, plot = False)
             _, truth_hr, truth_hrv = pipeline_raw(bvp, settings = raw_bvp_settings, smoothing_window = 20, plot = False)
             
             # print('Estimated HR w/o fourier:', est_hr)

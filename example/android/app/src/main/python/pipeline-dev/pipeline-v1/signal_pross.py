@@ -5,7 +5,7 @@ March 6, 2023
 """
 
 import numpy as np
-from scipy.signal import butter, filtfilt
+from scipy.signal import savgol_filter, butter, filtfilt, find_peaks
 from typing import Tuple
 
 
@@ -107,7 +107,7 @@ def get_hrv(ibis):
     return rmssd
 
 
-def get_hr_from_fourier(signal, fr, min_freq = 0.7, max_freq = 3.0):
+def get_hr_from_fourier(signal, fr, min_freq = 0.7, max_freq = 3):
     
     signal_size = len(signal)
     signal = signal.flatten()
