@@ -48,7 +48,6 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, wavelet = None,
         plt.title('Raw rPPG')
         plt.show()
     
-    signal = normalize_amplitude_to_1(signal)
     if wavelet is not None:
         # len_before = len(signal)
         signal = apply_wavelet(signal, wave = 'db2', level = wavelet)
@@ -59,7 +58,7 @@ def pipeline(sig: str or np.array, settings: dict = SETTINGS, wavelet = None,
             plt.title('Wavelet rPPG')
             plt.show()
     # else: wavelet_mult = 1
-    
+    signal = normalize_amplitude_to_1(signal)
     fhr = get_hr_from_fourier(signal, settings['fr'])
 
     # === Apply moving average to raw rPPG ===
