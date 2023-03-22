@@ -11,11 +11,11 @@ BVP_RATE = 64
 
 class IeeeGroundTruth:
 
-    def __init__(self, subject, trial):
+    def __init__(self, subject, trial, directory = 'channel_data'):
         self.subject = subject
         self.trial = trial
         
-        self.directory = 'channel_data'
+        self.directory = directory
         self.rgb_freq = RGB_RATE
         self.bvp_freq = BVP_RATE
     
