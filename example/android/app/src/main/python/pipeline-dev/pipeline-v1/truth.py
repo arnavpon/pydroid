@@ -103,35 +103,70 @@ class IeeeGroundTruth:
             self.bvp = detrend_w_poly(self.bvp)
             self.bvp = normalize_amplitude_to_1(self.bvp)
         
-    def interpolate_bvp(self):
-        self.bvp_interp = interp1d(
-            np.arange(len(self.bvp)) * self.bvp_freq / self.rgb_freq, self.bvp
-        )(np.arange(self.rgb.shape[0]))
+    # def interpolate_bvp(self):
+    #     self.bvp_interp = interp1d(
+    #         np.arange(len(self.bvp)) * self.bvp_freq / self.rgb_freq, self.bvp
+    #     )(np.arange(self.rgb.shape[0]))
     
-    def prepare_diffs(self):
+    # def prepare_diffs(self):
 
-        if self.rgb is None or self.bvp_interp is None:
-            raise Exception('Must call align_rgb_bvp and interpolate_bvp before calling prepare_diffs.')
+    #     if self.rgb is None or self.bvp_interp is None:
+    #         raise Exception('Must call align_rgb_bvp and interpolate_bvp before calling prepare_diffs.')
 
-        rgb_copy = self.rgb.copy()
-        rgb_copy = rgb_copy[1: , :]
-        for i in range(rgb_copy.shape[1]):
-            rgb_copy[:, i] = np.diff(self.rgb[:, i])
+    #     self.rgb_diffs = self.rgb[1: , :].copy()
+    #     for i in range(self.rgb_diffs.shape[1]):
+    #         self.rgb_diffs[:, i] = np.diff(self.rgb[:, i])
         
-        self.rgb = rgb_copy
-        self.bvp_interp = self.bvp_interp[1: ]
+    #     self.rgb = self.rgb[1: , :]
+    #     self.bvp_interp = self.bvp_interp[1: ]
     
     def prepare_data_for_ml(self):
         """
         Put the rgb and bvp data together into a single dataframe
         """
 
+        # get upsampled rgb
+        rgb_upsampled = np.zeros((len(self.bvp), self.rgb.shape[1]))
+        for col in range(rgb_upsampled.shape[1]):
+            rgb_upsampled[:, col] = self.upsample_signal(
+                self.rgb[:, col],
+                len(self.bvp),
+                old_fs = self.rgb_freq,
+                new_fs = self.bvp_freq
+            )
+
+        # get the diffs for each color channel
+        rgb_diffs = np.zeros((rgb_upsampled.shape[0] - 1, rgb_upsampled.shape[1]))
+        for col in range(rgb_diffs.shape[1]):
+            rgb_diffs[:, col] = np.diff(rgb_upsampled[:, col])
+
+
+        # exclude first element of both upsampled rgb and corresponding bvp
+        rgb_upsampled = rgb_upsampled[1: , :]
+        bvp_in_use = self.bvp[1: ]
+
         data = {
-            'r': self.rgb[:, 0],
-            'g': self.rgb[:, 1],
-            'b': self.rgb[:, 2],
-            'bvp': self.bvp_interp
+            'r': rgb_upsampled[:, 0],
+            'g': rgb_upsampled[:, 1],
+            'b': rgb_upsampled[:, 2],
+            'r_diff': rgb_diffs[:, 0],
+            'g_diff': rgb_diffs[:, 1],
+            'b_diff': rgb_diffs[:, 2],
+            'bvp': bvp_in_use
         }
 
         return pd.DataFrame(data)
 
+    # @staticmethod
+    # def upsample_signal(signal, old_fs = 30, new_fs = 64):
+        
+    #     timestamps = np.arange(signal.shape[0]) / old_fs
+    #     new_timestamps = np.arange(0, timestamps[-1], 1 / new_fs)
+    #     interpolator = interp1d(timestamps, signal, kind = 'linear', axis = 0)
+    #     return interpolator(new_timestamps)
+
+    @staticmethod
+    def upsample_signal(signal, new_length, old_fs = 30, new_fs = 64):
+
+        f = resample(signal, new_length)
+        return f
