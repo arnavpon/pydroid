@@ -62,8 +62,8 @@ def normalize_signal(signal: np.ndarray):
     Normalize the given signal using mean and std.
     """
 
-    mn = np.mean(signal)
-    std = np.std(signal)
+    mn = np.nanmean(signal)
+    std = np.nanstd(signal)
     return (signal - mn) / std
 
 def detrend_w_poly(signal: np.ndarray, degree: int = 3):

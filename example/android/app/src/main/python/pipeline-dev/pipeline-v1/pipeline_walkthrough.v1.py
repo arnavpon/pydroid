@@ -494,6 +494,7 @@ if __name__ == '__main__':
 
         tracker.append((get_hr(true_ibis), get_hr(ibis_peaks_enhanced)))
     
+    
     for true, enh in tracker:
         print(enh - true)
     print(f'== Avg: {np.mean([abs(enh - true) for true, enh in tracker])} ==')
