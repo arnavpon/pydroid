@@ -8,8 +8,11 @@ from ieee_video_start_frames import StartFrames
 from signal_pross import (
     normalize_signal,
     detrend_w_poly,
-    normalize_amplitude_to_1
+    normalize_amplitude_to_1,
+    bandpass
 )
+
+from wavelet import apply_wavelet
 
 RGB_RATE = 30
 BVP_RATE = 64
@@ -89,12 +92,27 @@ class IeeeGroundTruth:
         
     def process_rgb(self):
         
+        def _tonenorm(rgb, idx):
+            return rgb[:, idx] / (np.sqrt(
+                pow(rgb[:, 0], 2) + pow(rgb[:, 1], 2) + pow(rgb[:, 2], 2)
+            ))
+
         for i in range(self.rgb.shape[1]):
 
             # normalize, detrend, and then set amplitude to 1
-            self.rgb[:, i] = normalize_signal(self.rgb[:, i])
             self.rgb[:, i] = detrend_w_poly(self.rgb[:, i])
+            self.rgb[:, i] = normalize_signal(self.rgb[:, i])
             self.rgb[:, i] = normalize_amplitude_to_1(self.rgb[:, i])
+        
+        for i in range(self.rgb.shape[1]):
+            self.rgb[:, i] = _tonenorm(self.rgb, i)
+        
+        for i in range(self.rgb.shape[1]):
+            self.rgb[:, i] = bandpass(self.rgb[:, i], self.rgb_freq, [0.5, 3], order = 4)
+        
+        for i in range(self.rgb.shape[1]):
+            self.rgb[:, i] = apply_wavelet(self.rgb[:, i], cutoff_low = 0.5, cutoff_high = 3, wave = 'db2', level = 1)
+
     
     def process_bvp(self):
             
