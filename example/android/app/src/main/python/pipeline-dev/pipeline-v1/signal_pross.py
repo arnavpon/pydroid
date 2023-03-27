@@ -57,6 +57,15 @@ def n_moving_avg(signal: np.ndarray, window: int = 5):
     
     return np.array(result)
 
+def min_max_scale(signal: np.ndarray, min_val: float = 0, max_val: float = 1):
+    """
+    Scale the given signal to the range [min_val, max_val].
+    """
+
+    min_signal = np.nanmin(signal)
+    max_signal = np.nanmax(signal)
+    return (signal - min_signal) * (max_val - min_val) / (max_signal - min_signal) + min_val
+
 def normalize_signal(signal: np.ndarray):
     """
     Normalize the given signal using mean and std.
