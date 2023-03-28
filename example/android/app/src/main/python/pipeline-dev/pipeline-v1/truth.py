@@ -175,6 +175,17 @@ class IeeeGroundTruth:
         }
 
         return pd.DataFrame(data)
+    
+    def preprocess_original(self):
+
+        data = self.prepare_data_for_ml()
+
+        for col in data.columns:
+            data[col] = normalize_signal(data[col].to_numpy())
+            data[col] = detrend_w_poly(data[col].to_numpy())
+            data[col] = normalize_amplitude_to_1(data[col].to_numpy())
+
+        return data
 
     def preprocess_basic(self):
 
@@ -189,12 +200,19 @@ class IeeeGroundTruth:
     def preprocess_with_wavelet(self, target_col = 'bvp', wave = 'db2', level = 1):
 
         data = self.prepare_data_for_ml()
+
+        # take only the middle of the data
+        divisor = 5
+        interval = len(data) // divisor
+        data = data[interval: -interval]
+
+        if level > 0:
         
-        # apply wavelet to each column, except targets
-        for col in data.columns:
-            if col != target_col:
-                data[col] = apply_wavelet(data[col].to_numpy(), wave = wave, level = level)
-        
+            # apply wavelet to each column, except targets
+            for col in data.columns:
+                if col != target_col:
+                    data[col] = apply_wavelet(data[col].to_numpy(), wave = wave, level = level)
+
         # apply min-max scaling to each column
         for col in data.columns:
             data[col] = min_max_scale(data[col].to_numpy())
