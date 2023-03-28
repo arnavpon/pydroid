@@ -25,9 +25,9 @@ def apply_wavelet(signal, wave='db2', level=1, cutoff_low=0.7, cutoff_high=3.0, 
     x_new = np.linspace(0, 1, len(signal))
     filtered_signal = np.interp(x_new, x_old, filtered_signal)
 
-    # filter the interpolated signal to the desired frequency range
-    b, a = _butter_bandpass(cutoff_low, cutoff_high, fs)
-    filtered_signal = _filter_signal(filtered_signal, b, a)
+    # # filter the interpolated signal to the desired frequency range
+    # b, a = _butter_bandpass(cutoff_low, cutoff_high, fs)
+    # filtered_signal = _filter_signal(filtered_signal, b, a)
 
     return filtered_signal
 

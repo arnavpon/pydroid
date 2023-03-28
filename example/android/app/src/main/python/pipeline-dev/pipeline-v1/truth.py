@@ -176,13 +176,32 @@ class IeeeGroundTruth:
 
         return pd.DataFrame(data)
 
-    # @staticmethod
-    # def upsample_signal(signal, old_fs = 30, new_fs = 64):
+    def preprocess_basic(self):
+
+        data = self.prepare_data_for_ml()
+
+        # apply min-max scaling to each column
+        for col in data.columns:
+            data[col] = min_max_scale(data[col].to_numpy())
         
-    #     timestamps = np.arange(signal.shape[0]) / old_fs
-    #     new_timestamps = np.arange(0, timestamps[-1], 1 / new_fs)
-    #     interpolator = interp1d(timestamps, signal, kind = 'linear', axis = 0)
-    #     return interpolator(new_timestamps)
+        return data
+
+    def preprocess_with_wavelet(self, target_col = 'bvp', wave = 'db2', level = 1):
+
+        data = self.prepare_data_for_ml()
+        
+        # apply wavelet to each column, except targets
+        for col in data.columns:
+            if col != target_col:
+                data[col] = apply_wavelet(data[col].to_numpy(), wave = wave, level = level)
+        
+        # apply min-max scaling to each column
+        for col in data.columns:
+            data[col] = min_max_scale(data[col].to_numpy())
+        
+        return data
+
+
 
     @staticmethod
     def upsample_signal(signal, new_length, old_fs = 30, new_fs = 64):
