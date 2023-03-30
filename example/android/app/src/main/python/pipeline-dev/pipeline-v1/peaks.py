@@ -58,7 +58,7 @@ def _filter_peaks(signal: np.ndarray, peaks: np.ndarray, fr: int,
 
 
 def get_peaks_v2(signal: np.ndarray, fr: int, max_freq: float, peak_height: float,
-    prominence: float or None = None, with_valleys: bool = False,
+    prominence: float = 0, with_valleys: bool = False,
     with_min_dist: bool = True):
     
     # skip any None values at the beggining of the signal
@@ -72,10 +72,6 @@ def get_peaks_v2(signal: np.ndarray, fr: int, max_freq: float, peak_height: floa
     def _peak_getter(sig):
         min_dist = fr // max_freq if with_min_dist else 1
         
-        # if prominence is None, make it 0
-        if prominence is None:
-            prominence = 0
-        
         peaks, _ = find_peaks(sig, height = peak_height, prominence = prominence, distance = min_dist)
         
         prominences = {p + first_index: prom for p, prom in zip(peaks, peak_prominences(sig, peaks)[0])}
@@ -86,36 +82,7 @@ def get_peaks_v2(signal: np.ndarray, fr: int, max_freq: float, peak_height: floa
         valleys, valley_prominences = _peak_getter(-signal)
 
         peaks = sorted(list(set(peaks + valleys)))
-        peak_proms = {**peak_prominences, **valley_prominences}
+        peak_proms = {**peak_proms, **valley_prominences}
         return peaks, peak_proms
 
-    return peaks, peak_proms
-
-
-
-# def _filter_peaks_v2(signal: np.ndarray, peaks: np.ndarray, fr: int,
-#     slice_filter_thresh: int, perc1: float, perc2: float):
-#     """
-#     Filter peaks with the intent of trying to peaks that are "definitely" noise.
-#     """
-
-#     # first, remove peaks that aren't sufficienrtly above the perc2 percentile. I intentionally
-#     # am comparing the peaks to the entire array, and not just the set of peaks, because I'm not
-#     # making the assumption that a certain percentage of peaks will inherently be noisy. However,
-#     # I am making the assumption that if the peak is insufficiently clear of a certain baseline of
-#     # the entire signal, then it must be noise.
-#     peaks = np.array([p for p in peaks if signal[p] >= np.percentile(signal, perc2)])   
-    
-#     # Peak Walk: remove peaks that are close together, that aren't sufficiently large relative to the
-#     # entire signal. This percentile (perc1) is more stringent than the one used in the first step.
-#     for i in range(0, len(signal) - fr, fr):
-        
-#         j = i + fr
-#         slce = peaks[(peaks >= i) & (peaks < j)]
-        
-#         if len(slce) > slice_filter_thresh:
-#             to_remove = [i for i in range(len(slce)) if signal[slce[i]] < np.percentile(signal[slce], perc1)]
-#             peaks = peaks[~np.isin(peaks, [slce[i] for i in to_remove])]
-#             # removed += len(to_remove)
-    
-#     return peaks
+    return np.array(peaks), peak_proms
