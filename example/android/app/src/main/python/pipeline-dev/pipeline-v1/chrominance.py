@@ -16,7 +16,7 @@ from signal_pross import bandpass, detrend_w_poly, normalize_signal
 
 CHROM_SETTINGS = {
     'fr': 30,  # frame rate
-    'freq': (0.5, 3.34),  # bandpass frequency range
+    'freq': (0.67, 3.0),  # bandpass frequency range
     'bandpass_order': 4,  # bandpass filter order
     'moving_avg_window': 5,  # moving average window size for smoothing
     'peak_height': 0.00025,  # min peak height for peak detection
