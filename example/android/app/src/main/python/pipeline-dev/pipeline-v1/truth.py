@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.signal import butter, lfilter, resample
 
+from chrominance import chrominance, CHROM_SETTINGS
 from ieee_video_start_frames import StartFrames
 from signal_pross import (
     normalize_signal,
@@ -121,11 +122,11 @@ class IeeeGroundTruth:
     
     def process_bvp(self):
             
-            # normalize, detrend, and then set amplitude to 1
-            self.bvp = normalize_signal(self.bvp)
-            self.bvp = detrend_w_poly(self.bvp)
-            # self.bvp = min_max_scale(self.bvp)
-            self.bvp = normalize_amplitude_to_1(self.bvp)
+        # normalize, detrend, and then set amplitude to 1
+        self.bvp = normalize_signal(self.bvp)
+        self.bvp = detrend_w_poly(self.bvp)
+        # self.bvp = min_max_scale(self.bvp)
+        self.bvp = normalize_amplitude_to_1(self.bvp)
         
     # def interpolate_bvp(self):
     #     self.bvp_interp = interp1d(
@@ -167,9 +168,11 @@ class IeeeGroundTruth:
 
         # exclude first element of both upsampled rgb and corresponding bvp
         rgb_upsampled = rgb_upsampled[1: , :]
+        chrom = self.prepare_chrominance_as_feature(rgb_upsampled)
         bvp_in_use = self.bvp[1: ]
 
         data = {
+            'chrom': chrom,
             'r': rgb_upsampled[:, 0],
             'g': rgb_upsampled[:, 1],
             'b': rgb_upsampled[:, 2],
@@ -237,3 +240,13 @@ class IeeeGroundTruth:
 
         f = resample(signal, new_length)
         return f
+
+    @staticmethod
+    def prepare_chrominance_as_feature(rgb):
+
+        chrom = chrominance(rgb, CHROM_SETTINGS, None, False)
+
+        chrom = apply_wavelet(chrom, 'db2', 2)
+        chrom = bandpass(chrom, 64, [0.67, 3.0], 4)
+        chrom = min_max_scale(chrom)
+        return chrom
