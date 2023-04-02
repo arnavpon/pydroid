@@ -160,25 +160,33 @@ class IeeeGroundTruth:
                 new_fs = self.bvp_freq
             )
 
-        # get the diffs for each color channel
-        rgb_diffs = np.zeros((rgb_upsampled.shape[0] - 1, rgb_upsampled.shape[1]))
-        for col in range(rgb_diffs.shape[1]):
-            rgb_diffs[:, col] = np.diff(rgb_upsampled[:, col])
+        # get "velocity" and "acceleration" of rgb
+        rgb_vel = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
+        rgb_acc = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
+        for col in range(rgb_vel.shape[1]):
+
+            vel = np.diff(rgb_upsampled[:, col], n = 1)[1: ]
+            acc = np.diff(rgb_upsampled[:, col], n = 2)
+            rgb_vel[:, col] = vel
+            rgb_acc[:, col] = acc
 
 
         # exclude first element of both upsampled rgb and corresponding bvp
-        rgb_upsampled = rgb_upsampled[1: , :]
+        rgb_upsampled = rgb_upsampled[2: , :]
         chrom = self.prepare_chrominance_as_feature(rgb_upsampled)
-        bvp_in_use = self.bvp[1: ]
+        bvp_in_use = self.bvp[2: ]
 
         data = {
             'chrom': chrom,
             'r': rgb_upsampled[:, 0],
             'g': rgb_upsampled[:, 1],
             'b': rgb_upsampled[:, 2],
-            'r_diff': rgb_diffs[:, 0],
-            'g_diff': rgb_diffs[:, 1],
-            'b_diff': rgb_diffs[:, 2],
+            'r_vel': rgb_vel[:, 0],
+            'g_vel': rgb_vel[:, 1],
+            'b_vel': rgb_vel[:, 2],
+            'r_acc': rgb_acc[:, 0],
+            'g_acc': rgb_acc[:, 1],
+            'b_acc': rgb_acc[:, 2],
             'bvp': bvp_in_use
             # 'bvp': np.diff(bvp_in_use)
         }
