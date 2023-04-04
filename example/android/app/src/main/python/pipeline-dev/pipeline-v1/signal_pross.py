@@ -102,7 +102,7 @@ def get_ibis(peaks, fr = 30, with_valleys = False):
         
         ibis.append(ibi)
 
-    return ibis
+    return np.array(ibis)
 
 def get_hr(ibis):
     return 60 / np.mean(ibis)

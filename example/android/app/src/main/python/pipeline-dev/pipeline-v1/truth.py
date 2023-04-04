@@ -159,7 +159,7 @@ class IeeeGroundTruth:
                 old_fs = self.rgb_freq,
                 new_fs = self.bvp_freq
             )
-
+        
         # get "velocity" and "acceleration" of rgb
         rgb_vel = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
         rgb_acc = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
@@ -174,7 +174,24 @@ class IeeeGroundTruth:
         # exclude first element of both upsampled rgb and corresponding bvp
         rgb_upsampled = rgb_upsampled[2: , :]
         chrom = self.prepare_chrominance_as_feature(rgb_upsampled)
-        bvp_in_use = self.bvp[2: ]
+        self.bvp = self.bvp[2: ]
+
+        # add "memory" features
+        num_mems = 8
+        mem_skip = 3
+        mems = {f'{c}_mem_{i}': [] for i in range(num_mems) for c in ['r', 'g', 'b']}
+        for idx in range(num_mems * mem_skip, rgb_upsampled.shape[0]):
+            for i, c in enumerate(['r', 'g', 'b']):
+                for j in range(8):
+                    mems[f'{c}_mem_{j}'].append(rgb_upsampled[idx - (j * mem_skip), i])
+        
+        rgb_upsampled = rgb_upsampled[num_mems * mem_skip: , :]
+        chrom = chrom[num_mems * mem_skip: ]
+        rgb_vel = rgb_vel[num_mems * mem_skip: , :]
+        rgb_acc = rgb_acc[num_mems * mem_skip: , :]
+        bvp_in_use = self.bvp[num_mems * mem_skip: ]
+
+
 
         data = {
             'chrom': chrom,
@@ -187,9 +204,11 @@ class IeeeGroundTruth:
             'r_acc': rgb_acc[:, 0],
             'g_acc': rgb_acc[:, 1],
             'b_acc': rgb_acc[:, 2],
-            'bvp': bvp_in_use
-            # 'bvp': np.diff(bvp_in_use)
         }
+        for k, v in mems.items():
+            data[k] = v
+        data['bvp'] = bvp_in_use
+        # data['bvp'] = np.diff(bvp_in_use)
 
         # # make columns all the same length
         # for col in data:
