@@ -64,7 +64,10 @@ def min_max_scale(signal: np.ndarray, min_val: float = 0, max_val: float = 1):
 
     min_signal = np.nanmin(signal)
     max_signal = np.nanmax(signal)
-    return (signal - min_signal) * (max_val - min_val) / (max_signal - min_signal) + min_val
+    denom = (max_signal - min_signal) + min_val
+    if denom == 0:
+        return signal
+    return (signal - min_signal) * (max_val - min_val) / denom
 
 def normalize_signal(signal: np.ndarray):
     """
