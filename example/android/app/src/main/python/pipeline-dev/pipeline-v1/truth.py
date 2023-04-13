@@ -145,7 +145,7 @@ class IeeeGroundTruth:
     #     self.rgb = self.rgb[1: , :]
     #     self.bvp_interp = self.bvp_interp[1: ]
     
-    def prepare_data_for_ml(self):
+    def prepare_data_for_ml(self, num_feats_per_channel = 5, skip_amount = 10):
         """
         Put the rgb and bvp data together into a single dataframe
         """
@@ -177,20 +177,12 @@ class IeeeGroundTruth:
         self.bvp = self.bvp[2: ]
 
         # add "memory" features
-        num_mems = 8
-        mem_skip = 3
-        mems = {f'{c}_mem_{i}': [] for i in range(num_mems) for c in ['r', 'g', 'b']}
-        for idx in range(num_mems * mem_skip, rgb_upsampled.shape[0]):
-            for i, c in enumerate(['r', 'g', 'b']):
-                for j in range(8):
-                    mems[f'{c}_mem_{j}'].append(rgb_upsampled[idx - (j * mem_skip), i])
-        
-        rgb_upsampled = rgb_upsampled[num_mems * mem_skip: , :]
-        chrom = chrom[num_mems * mem_skip: ]
-        rgb_vel = rgb_vel[num_mems * mem_skip: , :]
-        rgb_acc = rgb_acc[num_mems * mem_skip: , :]
-        bvp_in_use = self.bvp[num_mems * mem_skip: ]
-
+        mems = self.get_memory_features(rgb_upsampled, num_feats_per_channel, skip_amount)
+        rgb_upsampled = rgb_upsampled[num_feats_per_channel * skip_amount: , :]
+        chrom = chrom[num_feats_per_channel * skip_amount: ]
+        rgb_vel = rgb_vel[num_feats_per_channel * skip_amount: , :]
+        rgb_acc = rgb_acc[num_feats_per_channel * skip_amount: , :]
+        bvp_in_use = self.bvp[num_feats_per_channel * skip_amount: ]
 
 
         data = {
@@ -259,6 +251,19 @@ class IeeeGroundTruth:
             data[col] = min_max_scale(data[col].to_numpy())
         
         return data
+    
+
+    def get_memory_features(self, rgb_upsampled, num_feats_per_channel, skip_amount):
+
+        channels = ['r', 'g', 'b']
+        mems = {f'{c}_mem_{i}': [] for i in range(num_feats_per_channel) for c in channels}
+        
+        for idx in range(num_feats_per_channel * skip_amount, rgb_upsampled.shape[0]):
+            for i, c in enumerate(channels):
+                for j in range(num_feats_per_channel):
+                    mems[f'{c}_mem_{j}'].append(rgb_upsampled[idx - (j * skip_amount), i])
+        
+        return mems
 
 
 
