@@ -6,6 +6,7 @@ March 6, 2023
 
 import numpy as np
 from scipy.signal import savgol_filter, butter, filtfilt, find_peaks
+from sklearn.decomposition import FastICA
 from typing import Tuple
 
 
@@ -112,11 +113,12 @@ def get_hr(ibis):
 
 
 def get_hrv(ibis):
-    differences = np.diff(ibis)
-    squared_diffs = np.square(differences)
-    mean_squared_diffs = np.mean(squared_diffs)
-    rmssd = np.sqrt(mean_squared_diffs)
-    return rmssd
+    """
+    HRV via the RMSSD method.
+    """
+
+    mean_sq_diffs = np.mean(np.square(np.diff(ibis)))
+    return np.sqrt(mean_sq_diffs)
 
 
 def get_hr_from_fourier(signal, fr, min_freq = 0.7, max_freq = 3):
@@ -136,3 +138,34 @@ def get_hr_from_fourier(signal, fr, min_freq = 0.7, max_freq = 3):
     fft_data[max_index] = fft_data[max_index]**2
     HR =  bps_freq[max_index]
     return HR
+
+
+def perform_ica(raw_traces, n_components=3):
+    """
+    Perform Independent Component Analysis (ICA) using the FastICA algorithm on the given normalized raw traces.
+
+    Parameters:
+    raw_traces (numpy.ndarray): A 2D array of normalized raw traces with shape (n_samples, n_channels).
+    n_components (int, optional): Number of independent components to extract. Default is 3.
+
+    Returns:
+    numpy.ndarray: The selected independent component with the highest peak in its power spectrum.
+    """
+    # Perform ICA using the FastICA algorithm
+    ica = FastICA(n_components=n_components)
+    source_signals = ica.fit_transform(raw_traces)
+
+    # Calculate power spectra of the independent components
+    power_spectra = np.abs(np.fft.fft(source_signals, axis=0))**2
+
+    # Find the component with the highest peak in its power spectrum
+    max_peak_component = None
+    max_peak_height = -np.inf
+    for i in range(n_components):
+        peaks, _ = find_peaks(power_spectra[:, i])
+        peak_height = np.max(power_spectra[peaks, i])
+        if peak_height > max_peak_height:
+            max_peak_height = peak_height
+            max_peak_component = i
+
+    return source_signals[:, max_peak_component]

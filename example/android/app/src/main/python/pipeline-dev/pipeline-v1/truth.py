@@ -11,7 +11,8 @@ from signal_pross import (
     detrend_w_poly,
     normalize_amplitude_to_1,
     bandpass,
-    min_max_scale
+    min_max_scale,
+    perform_ica
 )
 
 from wavelet import apply_wavelet
@@ -92,7 +93,7 @@ class IeeeGroundTruth:
             self.rgb[:, i] = pd.Series(self.rgb[:, i]).interpolate(method = 'linear').to_numpy()
         self.bvp = pd.Series(self.bvp.flatten()).interpolate(method = 'linear').to_numpy()
         
-    def process_rgb(self):
+    def process_rgb(self, minmax = True, use_wavelet = True, use_bandpass = True):
         
         def _tonenorm(rgb, idx):
             return rgb[:, idx] / (np.sqrt(
@@ -103,21 +104,29 @@ class IeeeGroundTruth:
 
             # normalize, detrend, and then set amplitude to 1
             self.rgb[:, i] = detrend_w_poly(self.rgb[:, i])
-            # self.rgb[:, i] = min_max_scale(self.rgb[:, i])
-            # self.rgb[:, i] = normalize_signal(self.rgb[:, i])
+            # if minmax:
+            #     self.rgb[:, i] = min_max_scale(self.rgb[:, i])
+            # else:
+            #     self.rgb[:, i] = normalize_signal(self.rgb[:, i])
             # self.rgb[:, i] = normalize_amplitude_to_1(self.rgb[:, i])
         
         # for i in range(self.rgb.shape[1]):
         #     self.rgb[:, i] = _tonenorm(self.rgb, i)
         
-        for i in range(self.rgb.shape[1]):
-            self.rgb[:, i] = apply_wavelet(self.rgb[:, i], cutoff_low = 0.5, cutoff_high = 3, wave = 'db2', level = 1)
+        if use_wavelet:
+            for i in range(self.rgb.shape[1]):
+                self.rgb[:, i] = apply_wavelet(self.rgb[:, i], cutoff_low = 0.5, cutoff_high = 3, wave = 'db2', level = 1)
         
-        for i in range(self.rgb.shape[1]):
-            self.rgb[:, i] = bandpass(self.rgb[:, i], self.rgb_freq, [0.5, 3], order = 4)
+        if use_bandpass:
+            for i in range(self.rgb.shape[1]):
+                self.rgb[:, i] = bandpass(self.rgb[:, i], self.rgb_freq, [0.5, 3], order = 4)
 
-        for i in range(self.rgb.shape[1]):
-            self.rgb[:, i] = min_max_scale(self.rgb[:, i])
+        if minmax:
+            for i in range(self.rgb.shape[1]):
+                self.rgb[:, i] = min_max_scale(self.rgb[:, i])
+        else:
+            for i in range(self.rgb.shape[1]):
+                self.rgb[:, i] = normalize_signal(self.rgb[:, i])
 
     
     def process_bvp(self):
@@ -126,7 +135,7 @@ class IeeeGroundTruth:
         self.bvp = normalize_signal(self.bvp)
         self.bvp = detrend_w_poly(self.bvp)
         # self.bvp = min_max_scale(self.bvp)
-        self.bvp = normalize_amplitude_to_1(self.bvp)
+        # self.bvp = normalize_amplitude_to_1(self.bvp)
         
     # def interpolate_bvp(self):
     #     self.bvp_interp = interp1d(
@@ -176,6 +185,9 @@ class IeeeGroundTruth:
         chrom = self.prepare_chrominance_as_feature(rgb_upsampled)
         self.bvp = self.bvp[2: ]
 
+        # get ica feature
+        ica_feat = perform_ica(rgb_upsampled)
+
         # add "memory" features
         mems = self.get_memory_features(rgb_upsampled, num_feats_per_channel, skip_amount)
         rgb_upsampled = rgb_upsampled[num_feats_per_channel * skip_amount: , :]
@@ -183,10 +195,12 @@ class IeeeGroundTruth:
         rgb_vel = rgb_vel[num_feats_per_channel * skip_amount: , :]
         rgb_acc = rgb_acc[num_feats_per_channel * skip_amount: , :]
         bvp_in_use = self.bvp[num_feats_per_channel * skip_amount: ]
+        ica_feat = ica_feat[num_feats_per_channel * skip_amount: ]
 
 
         data = {
             'chrom': chrom,
+            'ica_feat': ica_feat,
             'r': rgb_upsampled[:, 0],
             'g': rgb_upsampled[:, 1],
             'b': rgb_upsampled[:, 2],
