@@ -102,33 +102,37 @@ class IeeeGroundTruth:
             self.rgb[:, i] = pd.Series(self.rgb[:, i]).interpolate(method = 'linear').to_numpy()
         self.bvp = pd.Series(self.bvp.flatten()).interpolate(method = 'linear').to_numpy()
         
-    def process_rgb(self, minmax = True, use_wavelet = True, use_bandpass = True):
-        
-        def _tonenorm(rgb, idx):
-            return rgb[:, idx] / (np.sqrt(
-                pow(rgb[:, 0], 2) + pow(rgb[:, 1], 2) + pow(rgb[:, 2], 2)
-            ))
+    def process_rgb(self, minmax = False, use_wavelet = True, use_bandpass = False):
+        """
+        Preprocessing for RGB data. Turning minmax on or off toggles whether we use minmax scaling or if
+        we normalize by subtracting the mean and dividing by the standard deviation. Turning use_wavelet on
+        filters the data using wavelet filter. Turning use_bandpass on filters the data using a bandpass filter.
+        I use minmax = False, use_wavelet = True, and use_bandpass = False in the thesis.
+        """
 
+        # detrend each channel
         for i in range(self.rgb.shape[1]):
-
-            # normalize, detrend, and then set amplitude to 1
             self.rgb[:, i] = detrend_w_poly(self.rgb[:, i])
-            # if minmax:
-            #     self.rgb[:, i] = min_max_scale(self.rgb[:, i])
-            # else:
-            #     self.rgb[:, i] = normalize_signal(self.rgb[:, i])
-            # self.rgb[:, i] = normalize_amplitude_to_1(self.rgb[:, i])
-        
-        # for i in range(self.rgb.shape[1]):
-        #     self.rgb[:, i] = _tonenorm(self.rgb, i)
         
         if use_wavelet:
             for i in range(self.rgb.shape[1]):
-                self.rgb[:, i] = apply_wavelet(self.rgb[:, i], cutoff_low = 0.5, cutoff_high = 3, wave = 'db2', level = 2)
+                self.rgb[:, i] = apply_wavelet(
+                    self.rgb[:, i],
+
+                    # playing with these params could yield different or maybe better results,
+                    # I didn't get a chance to do more with them 
+                    wave = 'db2',
+                    level = 2
+                )
         
         if use_bandpass:
             for i in range(self.rgb.shape[1]):
-                self.rgb[:, i] = bandpass(self.rgb[:, i], self.rgb_freq, [0.5, 3], order = 4)
+                self.rgb[:, i] = bandpass(
+                    self.rgb[:, i],
+                    self.rgb_freq,
+                    [0.5, 3],  # altering this could yield better results
+                    order = 4
+                )
 
         if minmax:
             for i in range(self.rgb.shape[1]):
@@ -139,36 +143,28 @@ class IeeeGroundTruth:
 
     
     def process_bvp(self):
-            
-        # normalize, detrend, and then set amplitude to 1
+        """
+        Preprocess ground truth BVP by normalizing and detrending.
+        """
         self.bvp = normalize_signal(self.bvp)
         self.bvp = detrend_w_poly(self.bvp)
-        # self.bvp = min_max_scale(self.bvp)
-        # self.bvp = normalize_amplitude_to_1(self.bvp)
-        
-    # def interpolate_bvp(self):
-    #     self.bvp_interp = interp1d(
-    #         np.arange(len(self.bvp)) * self.bvp_freq / self.rgb_freq, self.bvp
-    #     )(np.arange(self.rgb.shape[0]))
-    
-    # def prepare_diffs(self):
-
-    #     if self.rgb is None or self.bvp_interp is None:
-    #         raise Exception('Must call align_rgb_bvp and interpolate_bvp before calling prepare_diffs.')
-
-    #     self.rgb_diffs = self.rgb[1: , :].copy()
-    #     for i in range(self.rgb_diffs.shape[1]):
-    #         self.rgb_diffs[:, i] = np.diff(self.rgb[:, i])
-        
-    #     self.rgb = self.rgb[1: , :]
-    #     self.bvp_interp = self.bvp_interp[1: ]
     
     def prepare_data_for_ml(self, num_feats_per_channel = 5, skip_amount = 10):
         """
-        Put the rgb and bvp data together into a single dataframe
+        Bring together RGB and BVP into a single dataframe for easier handling at the ML step. RGB data
+        is upsampled to the frequency of the BVP data to that the model output can be directly compared
+        to the ground truth BVP.
+
+        Also performs feature engineering step. Features explained below:
+        - velocity features: equivalent of the 1st derivative of the RGB channels
+        - acceleration features: equivalent of the 2nd derivative of the RGB channels
+        - memory features: previous state of each channel; parametric in now many there are and how far back they go
+        - chrom: based on the Chrominance algorithm
+        - ICA: performs independent component analysis on the RGB channels, selects the returned component with the
+            highest spectral power, and uses that as a feature
         """
 
-        # get upsampled rgb
+        # upsample RGB
         rgb_upsampled = np.zeros((len(self.bvp), self.rgb.shape[1]))
         for col in range(rgb_upsampled.shape[1]):
             rgb_upsampled[:, col] = self.upsample_signal(
@@ -178,27 +174,27 @@ class IeeeGroundTruth:
                 new_fs = self.bvp_freq
             )
         
-        # get "velocity" and "acceleration" of rgb
+        # get "velocity" and "acceleration" features of rgb
         rgb_vel = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
         rgb_acc = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
         for col in range(rgb_vel.shape[1]):
-
-            vel = np.diff(rgb_upsampled[:, col], n = 1)[1: ]
+            vel = np.diff(rgb_upsampled[:, col], n = 1)[1: ]  # need to drop 1st element to align w/ accel feats
             acc = np.diff(rgb_upsampled[:, col], n = 2)
             rgb_vel[:, col] = vel
             rgb_acc[:, col] = acc
 
 
-        # exclude first element of both upsampled rgb and corresponding bvp
-        rgb_upsampled = rgb_upsampled[2: , :]
+        rgb_upsampled = rgb_upsampled[2: , :]  # discard first 2 elements to align with vel and acc feats
+        self.bvp = self.bvp[2: ]  # discard first 2 elements to align with vel and acc feats
+        
+        # get chrom and ICA feats
         chrom = self.prepare_chrominance_as_feature(rgb_upsampled)
-        self.bvp = self.bvp[2: ]
-
-        # get ica feature
         ica_feat = perform_ica(rgb_upsampled)
 
-        # add "memory" features
+        # get memory feats
         mems = self.get_memory_features(rgb_upsampled, num_feats_per_channel, skip_amount)
+        
+        # adjust length of all features to align with memory feats
         rgb_upsampled = rgb_upsampled[num_feats_per_channel * skip_amount: , :]
         chrom = chrom[num_feats_per_channel * skip_amount: ]
         rgb_vel = rgb_vel[num_feats_per_channel * skip_amount: , :]
@@ -206,10 +202,8 @@ class IeeeGroundTruth:
         bvp_in_use = self.bvp[num_feats_per_channel * skip_amount: ]
         ica_feat = ica_feat[num_feats_per_channel * skip_amount: ]
 
-
+        # collect the data (except memory) in a map
         data = {
-            'chrom': chrom,
-            'ica_feat': ica_feat,
             'r': rgb_upsampled[:, 0],
             'g': rgb_upsampled[:, 1],
             'b': rgb_upsampled[:, 2],
@@ -219,68 +213,25 @@ class IeeeGroundTruth:
             'r_acc': rgb_acc[:, 0],
             'g_acc': rgb_acc[:, 1],
             'b_acc': rgb_acc[:, 2],
+            'chrom': chrom,
+            'ica_feat': ica_feat,
         }
+
         for k, v in mems.items():
             data[k] = v
         data['bvp'] = bvp_in_use
-        # data['bvp'] = np.diff(bvp_in_use)
-
-        # # make columns all the same length
-        # for col in data:
-        #     if col != 'bvp':
-        #         data[col] = data[col][1: ]
-
         return pd.DataFrame(data)
-    
-    def preprocess_original(self):
-
-        data = self.prepare_data_for_ml()
-
-        for col in data.columns:
-            data[col] = normalize_signal(data[col].to_numpy())
-            data[col] = detrend_w_poly(data[col].to_numpy())
-            data[col] = normalize_amplitude_to_1(data[col].to_numpy())
-
-        return data
-
-    def preprocess_basic(self):
-
-        data = self.prepare_data_for_ml()
-
-        # apply min-max scaling to each column
-        for col in data.columns:
-            data[col] = min_max_scale(data[col].to_numpy())
-        
-        return data
-
-    def preprocess_with_wavelet(self, target_col = 'bvp', wave = 'db2', level = 1):
-
-        data = self.prepare_data_for_ml()
-
-        # take only the middle of the data
-        divisor = 5
-        interval = len(data) // divisor
-        data = data[interval: -interval]
-
-        if level > 0:
-        
-            # apply wavelet to each column, except targets
-            for col in data.columns:
-                if col != target_col:
-                    data[col] = apply_wavelet(data[col].to_numpy(), wave = wave, level = level)
-
-        # apply min-max scaling to each column
-        for col in data.columns:
-            data[col] = min_max_scale(data[col].to_numpy())
-        
-        return data
-    
 
     def get_memory_features(self, rgb_upsampled, num_feats_per_channel, skip_amount):
+        """
+        Get the memory features, as described above.
+        """
 
+        # create a dictionary with a key for each memory feature
         channels = ['r', 'g', 'b']
         mems = {f'{c}_mem_{i}': [] for i in range(num_feats_per_channel) for c in channels}
         
+        # populate all the memory features
         for idx in range(num_feats_per_channel * skip_amount, rgb_upsampled.shape[0]):
             for i, c in enumerate(channels):
                 for j in range(num_feats_per_channel):
@@ -311,17 +262,22 @@ class IeeeGroundTruth:
         ).to_numpy()
 
     @staticmethod
-    def upsample_signal(signal, new_length, old_fs = 30, new_fs = 64):
-
-        f = resample(signal, new_length)
-        return f
+    def upsample_signal(signal, new_length):
+        return resample(signal, new_length)
 
     @staticmethod
     def prepare_chrominance_as_feature(rgb):
+        """
+        Run the chrominance algorithm on the RGB data and then apply some postprocessing after
+        the fact. Note that the postprocessing shouldn't really be necessary, but the model's
+        performance seemed better with the postprocessng for some reason.
+        """
 
         chrom = chrominance(rgb, CHROM_SETTINGS, None, False)
 
+        # postprocessing
         chrom = apply_wavelet(chrom, 'db2', 2)
         chrom = bandpass(chrom, 64, [0.67, 3.0], 4)
         chrom = min_max_scale(chrom)
+        
         return chrom
