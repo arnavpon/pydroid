@@ -45,7 +45,7 @@ android {
         }
         python {
             // buildPython "/Users/arnavpon/opt/anaconda3/envs/chaquopy/bin/python3.8"
-            buildPython "/Users/samuelhmorton/opt/anaconda3/bin/python"
+            buildPython "/Users/samuelhmorton/opt/anaconda3/bin/python3.7"
             pip {
                 install 'numpy'
                 install 'scikit-learn'
@@ -53,9 +53,22 @@ android {
                 install 'opencv-python'
                 install 'face_recognition'
                 install 'dlib'
+                install 'pandas'
+                install 'scipy'
+                install 'PyWavelets'
+                install 'xgboost'
             }
         }
     }
+
+    sourceSets {
+        main {
+            assets {
+                exclude '/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/src/main/python/pipeline_dev/'
+            }
+        }
+    }
+
 
     buildTypes {
         release {

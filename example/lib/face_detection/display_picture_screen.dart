@@ -89,7 +89,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Display the Picture')),
+      appBar: AppBar(title: const Text('')),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,7 +100,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
               TextButton(
                 onPressed: _detectFace,
                 child: const Text(
-                  "Detect Face",
+                  "Detect",
                   textScaleFactor: 1.4,
                 ),
               ),

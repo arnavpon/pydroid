@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:pydroid/pydroid.dart';
 import 'package:pydroid_example/face_detection/canvas.dart';
+import 'package:pydroid_example/face_detection/hr_screen.dart';
 
 class VideoPage extends StatefulWidget {
   const VideoPage({Key? key}) : super(key: key);
@@ -21,6 +22,7 @@ class _VideoPageState extends State<VideoPage> {
 
   // initialize face box to a box with no area
   List<dynamic> _faces = [{'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0}];
+  List<dynamic> _hr = [];
   
   // CameraController initialized later
   late CameraController _cameraController;
@@ -63,8 +65,19 @@ class _VideoPageState extends State<VideoPage> {
       // get bounding box
       // NOTE: For now, this is just getting the bounding box for the first
       //      frame and overlaying just that box onto the camera preview
+      print('[Dart] Analyzing video...');
       final value = await Pydroid.analyzeVideo(file.path);
-      setState(() => _faces = value);
+      print('[Dart] Done analyzing video');
+      // setState(() => _faces = value);
+      setState(() => _hr = value[0]);
+      print('We now have the hr and its');
+      print(_hr);
+
+      // Navigate to the new screen and pass the _hr value
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => HRScreen(hr: _hr)),
+      );
 
     // otherwise we start recording
     } else { 

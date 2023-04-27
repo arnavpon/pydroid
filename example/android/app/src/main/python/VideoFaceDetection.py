@@ -11,6 +11,9 @@ from FaceDetection_MT1 import (
     LOADED_W, LOADED_H,
     IMG_THRESH
 )
+from ml_pipeline_basic import pipeline
+
+from pipeline_dev.pipeline_v1.tracking import track_video
 
 
 def main(arguments):
@@ -23,6 +26,9 @@ def main(arguments):
     
     # load the video
     vid_path = arguments.get("vid_path")
+    # print('running track video')
+    # track_video(vid_path)
+
     vid = cv2.VideoCapture(vid_path)
 
     # read the initial frame
@@ -64,6 +70,7 @@ def main(arguments):
     # init array to track all bounding bounding boxes
     # it starts out already containing the box for the first frame that a face was found
     boxes = [bbox_dict]
+    frames = [frame]
 
     # init dlib correlation tracker
     tracker = dlib.correlation_tracker()
@@ -82,11 +89,14 @@ def main(arguments):
         curr_box = _track(frame, tracker)
         if curr_box is not None:
             boxes.append(curr_box)
+            frames.append(frame)
 
         success, frame = vid.read()
     
     print(f'Returning {len(boxes)} boxes out of {nframes} frames')
-    return json.dumps(boxes)
+    print('running bbox')
+    res = pipeline(boxes, frames)
+    return json.dumps(res)
 
 
 def _process_img(frame):

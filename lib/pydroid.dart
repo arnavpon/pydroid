@@ -96,8 +96,23 @@ class Pydroid {
       log("[dart] Converting object to rect...");
       // convert successful result to expected format (bounding box)
       Map<String, dynamic> value = result[KEY_OUTPUT_VALUE];
-      final topLeft = Offset(value["x1"] as double, value["y1"] as double);
-      final bottomRight = Offset(value["x2"] as double, value["y2"] as double);
+
+      double x1 = value["x1"] as double;
+      double y1 = value["y1"] as double;
+      double x2 = value["x2"] as double;
+      double y2 = value["y2"] as double;
+
+      double factor = 0.25;
+      x1 = x1 + ((x2 - x1) * factor);
+      y1 = y1 + ((y2 - y1) * factor);
+      x2 = x2 - ((x2 - x1) * factor);
+      y2 = y2 - ((y2 - y1) * (factor + 0.2));
+
+      // final topLeft = Offset(value["x1"] as double, value["y1"] as double);
+      // final topLeft = Offset(x1, value["y1"] as double);
+      // final bottomRight = Offset(value["x2"] as double, value["y2"] as double);
+      final topLeft = Offset(x1, y1);
+      final bottomRight = Offset(x2, y2);
       final rect = Rect.fromPoints(topLeft, bottomRight);
       log("Final rect: ${rect.toString()}");
       return rect;
@@ -110,9 +125,12 @@ class Pydroid {
   static Future<List<dynamic>> analyzeVideo(String videoPath) async {
     final result = await executeInBackground(
         'VideoFaceDetection', {"vid_path": videoPath});
+    print('we got here');
     
     if (result[KEY_OUTPUT_ERROR] == null) {
       List<dynamic> value = result[KEY_OUTPUT_VALUE];
+      log("[dart] we got the return");
+      print(value);
       return value;
     } else {
       log("[dart] error returned");
