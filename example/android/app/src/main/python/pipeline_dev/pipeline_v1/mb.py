@@ -8,6 +8,7 @@ import numpy as np
 import xgboost as xgb
 
 from losses import LossFactory
+from peaks import get_peaks_for_hr
     
 
 class LonePineGBM:
@@ -127,12 +128,17 @@ class LonePineGBM:
 
         # initialize the loss function for the model
         self.loss = LossFactory(self.split_size, loss_type = loss_type, mse_weight = mse_weight, dtw_weight = dtw_weight).get_function()
+        if self.finetune:
+            self.mse_loss = LossFactory(self.split_size, loss_type = 'mse').get_function()
     
     def split_data(self, to_exclude = None):
-        
-        data_in_use = self.given_data if to_exclude is None else self.given_data[~self.given_data[self.subject_col].isin(to_exclude)]
+        """
+        Split data into training and testing while preserving consecutive samples from the same subject.
+        """
 
-        subject_indices = data_in_use.groupby(self.subject_col).indices
+        # get indices of samples from each subject
+        subject_indices = self.given_data.groupby(self.subject_col).indices
+        
         splits = []
         for _, indices in subject_indices.items():
             
@@ -149,274 +155,132 @@ class LonePineGBM:
                 splits.extend(subject_splits)
         
         return splits
-
+    
     def fit(self):
+        """
+        Train the model.
+        """
+
+        # for tracking how long the training process takes
         t1 = datetime.today()
         
-        self.params = {
-            'metric': 'None',
-            'verbosity': -1,
-            'learning_rate': self.learning_rate,
-            'objective': 'regression',
-            'boosting': self.model_type,
-            'max_depth': self.max_depth,
-            'num_leaves': self.num_leaves,
-            'max_bin': self.max_bin,
-        }
-    
-        if self.model_type == 'rf':
-            self.params['bagging_freq'] = 1
-            self.params['bagging_fraction'] = 0.8
-
-
-        training_loss_key = 'hr_err'
-        feval = self.hr_error_eval_metric
-        print('loss is loss')
-        
-        training_meta = {}
-
-        for train_data in self.train_data:
-            
-            if self.model_type == 'gbdt':
-                self.gbm = lgb.train(
-                    self.params,
-                    train_data,
-                    valid_sets = [train_data, self.test_data],
-                    valid_names=['train', 'test'],
-                    fobj = self.loss,
-                    num_boost_round = self.n_estimators,
-                    feval=feval,
-                    callbacks=[
-                        early_stopping(stopping_rounds = self.early_stopping_rounds),
-                        log_evaluation(period=5)
-                    ],
-                    evals_result = training_meta,
-                    init_model = self.gbm
-                )
-            else:
-                self.gbm = lgb.train(
-                    self.params,
-                    train_data,
-                    valid_sets = [train_data, self.test_data],
-                    valid_names=['train', 'test'],
-                    num_boost_round = self.n_estimators,
-                    feval=feval,
-                    callbacks=[
-                        early_stopping(stopping_rounds = self.early_stopping_rounds),
-                        log_evaluation(period=5)
-                    ],
-                    evals_result = training_meta,
-                )
-
-            mse, hr_err, hr_err_sq = self.eval()
-            print(f'Before fine-tuning: MSE = {mse}, HR error = {hr_err}, HR error (squared) = {hr_err_sq}')
-
-            if self.model_type == 'gbdt' and self.finetune:
-                
-                print('\n\nFine-tuning...')
-                gbm_copy = copy.deepcopy(self.gbm)
-                pred = gbm_copy.predict(train_data.get_data())
-                
-                # new_targ = train_data.get_label() - pred
-                new_targ = np.ones(len(pred))
-                nsplits = len(pred) // self.split_size
-                labels = train_data.get_label()
-                for i in range(nsplits):
-                    pred_curr = pred[i * self.split_size: (i + 1) * self.split_size]
-                    label_curr = labels[i * self.split_size: (i + 1) * self.split_size]
-                    hr_err = self.get_hr_error(pred_curr, label_curr, square = True)
-                    new_targ[i * self.split_size: (i + 1) * self.split_size] = hr_err
-                
-                new_train_data = lgb.Dataset(train_data.get_data(), label = new_targ)
-
-                self.gbm = lgb.train(
-                    self.params,
-                    new_train_data,
-                    valid_sets = [new_train_data, self.test_data],
-                    valid_names=['train', 'test'],
-                    fobj = self.loss,
-                    num_boost_round = self.n_estimators // 2,
-                    feval=feval,
-                    callbacks=[
-                        early_stopping(stopping_rounds = self.early_stopping_rounds // 2),
-                        log_evaluation(period=5)
-                    ],
-                    evals_result = training_meta,
-                    init_model = gbm_copy
-                )
-
-            
-
-        self.training_loss = training_meta['train'][training_loss_key]
-        self.test_loss = training_meta['test'][training_loss_key]
-        print(f'Finished training in {datetime.today() - t1}')
-    
-    def fit_xgb(self):
-        t1 = datetime.today()
-
+        # init params for the XGBoost model
         self.params = {
             'learning_rate': self.learning_rate,
             'booster': 'gbtree',
             'max_depth': self.max_depth,
-            'num_leaves': self.num_leaves,
             'max_bin': self.max_bin,
         }
 
-        feval = self.hr_error_eval_metric_xgb
-
-        for train_data, train_data_just_data in zip(self.train_data, self.train_data_just_data):
-
-            self.gbm = xgb.train(
+        for batch_data in self.train_data:
+            
+            # train the model
+            self.model = xgb.train(
                 self.params,
-                train_data,
-                num_boost_round=self.n_estimators,
-                early_stopping_rounds=self.early_stopping_rounds,
-                feval=feval,
-                verbose_eval=5,
-                evals=[(train_data, 'train'), (self.test_data, 'test')],
-                xgb_model=self.gbm,
-                obj = self.loss.get_func()
+                batch_data,
+                num_boost_round = self.n_estimators,
+                early_stopping_rounds = self.early_stopping_rounds,
+                feval = self.hr_error_eval_metric,
+                verbose_eval = 5,
+                evals = [(batch_data, 'train'), (self.test_data, 'test')],
+                xgb_model = self.model,  # for providing initial parameters from which to start (or None, if it's first iteration)
+                obj = self.loss
             )
 
-            # mse, hr_err, hr_err_sq = self.eval()
-            # print(f'Before fine-tuning: MSE = {mse}, HR error = {hr_err}, HR error (squared) = {hr_err_sq}')
-
             if self.finetune:
+                
+                # make a copy of the model and get predictions on the current batch
+                model_copy = self.model.copy()
+                pred = gbm_copy.predict(batch_data)
 
-                print('\n\nFine-tuning...')
-                gbm_copy = self.gbm.copy()
-                pred = gbm_copy.predict(train_data)
-
+                # initialize an array to hold the new, adjqusted targets for finetuning step
                 new_targ = np.ones(len(pred))
+                
+                # get the number of splits in the current batch
                 nsplits = len(pred) // self.split_size
-                labels = train_data.get_label()
+                
+                # get labels from the current batch
+                labels = batch_data.get_label()
+                
+                # use the difference between the labels and predictions as the new targets
                 for i in range(nsplits):
                     pred_curr = pred[i * self.split_size: (i + 1) * self.split_size]
                     label_curr = labels[i * self.split_size: (i + 1) * self.split_size]
                     new_targ[i * self.split_size: (i + 1) * self.split_size] = label_curr - pred_curr
 
-                new_train_data = xgb.DMatrix(train_data_just_data, label=new_targ)
+                # create a new DMatrix with the adjusted targets
+                new_batch_data = xgb.DMatrix(batch_data.get_data(), new_targ)
 
-                self.gbm = xgb.train(
+                self.model = xgb.train(
                     self.params,
-                    new_train_data,
-                    num_boost_round=self.n_estimators // 2,
-                    early_stopping_rounds=self.early_stopping_rounds // 2,
-                    feval=feval,
-                    verbose_eval=5,
-                    evals=[(new_train_data, 'train'), (self.test_data, 'test')],
-                    xgb_model=gbm_copy,
-                    obj = self.loss.get_func()
+                    new_batch_data,
+                    num_boost_round = self.n_estimators // 2,
+                    early_stopping_rounds = self.early_stopping_rounds // 2,
+                    feval = self.hr_error_eval_metric,
+                    verbose_eval = 5,
+                    evals = [(new_batch_data, 'train'), (self.test_data, 'test')],
+                    xgb_model = model_copy,
+                    obj = self.mse_loss
                 )
 
         print(f'Finished training in {datetime.today() - t1}')
 
     def predict(self, X):
-        return self.gbm.predict(X)
+        return self.model.predict(X)
     
-    def save(self, model_file = 'lonePineGBM.xgb'):
-
-        # new_params = copy.deepcopy(self.params)
-        # new_params['learning_rate'] = 0.0000001
-        # new_gbm = lgb.train(self.params, self.train_data[0], num_boost_round=1, init_model = self.gbm)
-
-        # # import onnxmltools
-        # # from onnxconverter_common.data_types import FloatTensorType
-
-        # # initial_types = [('input', FloatTensorType([None, new_gbm.num_feature()]))]
-        # # onnx_model = onnxmltools.convert_lightgbm(new_gbm, initial_types=initial_types)
-        # # onnxmltools.utils.save_model(onnx_model, model_file)
-
-        # import onnxmltools
-        # from onnxconverter_common.data_types import FloatTensorType
-        # onnx_model = onnxmltools.convert_lightgbm(new_gbm, initial_types=[('input', FloatTensorType([None, new_gbm.num_feature()]))])
-
-        # # Save as protobuf
-        # onnxmltools.utils.save_model(onnx_model, model_file)
-
-        self.gbm.save_model(model_file)
-
+    def save(self, model_file = 'model.xgb'):
+        self.model.save_model(model_file)
     
     def load_from_file(self, model_file):
-        self.gbm = lgb.model_from_string(model_file)
+        self.model = xgb.Booster()
+        self.model.load_model(model_file)
 
     def eval(self):
+        """
+        Compute validation error for the model.
+        """
         
-        test_X = self.test_data.get_data()
-        test_y = self.test_data.get_label()
-        nsplits = int(len(test_X) / self.split_size)
-        errs = []
-        mses = np.zeros(len(test_X))
-        
-        for i in range(nsplits):
-
-            curr_pred = self.predict(test_X[i * self.split_size: (i + 1) * self.split_size, :])
-            curr_true = test_y[i * self.split_size: (i + 1) * self.split_size]
-            curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 5, use_bandpass = True)
-            
-            mses[i * self.split_size: (i + 1) * self.split_size] = curr_true - curr_pred
-            hr_err = self.get_hr_error(curr_true, curr_pred, square = False)
-            errs.append(hr_err)
-        
-        return np.mean(np.square(mses)), np.mean(errs), np.mean(np.square(errs))
-
-    def xgb_eval(self):
-        
+        # get number of splits in the test set
         nsplits = int(len(self.test_X) / self.split_size)
+        
+        # init arrays for storing hr errors and mses
         errs = []
         mses = np.zeros(len(self.test_X))
         
         for i in range(nsplits):
-
+            
+            # get the predictions and ground truth for this batch
             curr_pred = self.predict(xgb.DMatrix(self.test_X[i * self.split_size: (i + 1) * self.split_size, :]))
             curr_true = self.test_y[i * self.split_size: (i + 1) * self.split_size]
+            
+            # process both the predicted and ground truth signal
             curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 5, use_bandpass = True)
             
+            # get the errors
             mses[i * self.split_size: (i + 1) * self.split_size] = curr_true - curr_pred
             hr_err = self.get_hr_error(curr_true, curr_pred, square = False)
             errs.append(hr_err)
         
         return np.mean(np.square(mses)), np.mean(errs), np.mean(np.square(errs))
-    
+
     def validate(self):
+        """
+        Get validation error for the model for use in cross-validation.
+        """
 
-        test_X = self.test_data.get_data()
-        test_y = self.test_data.get_label()
-        nsplits = int(len(test_X) / self.split_size)
+        # get number of splits in the test set
+        nsplits = int(len(self.test_X) / self.split_size)
         
+        # init array for collecting errors
         errors = []
         for i in range(nsplits):
-
-            curr_pred = self.predict(test_X[i * self.split_size: (i + 1) * self.split_size, :])
-            curr_true = test_y[i * self.split_size: (i + 1) * self.split_size]
-            curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 5, use_bandpass = True)
             
-            mse = np.mean(np.square(curr_true - curr_pred))
-            hr_err = self.get_hr_error(curr_true, curr_pred, square = False)
-            hrv_err = self.get_hrv_error(curr_true, curr_pred, square = False)
-            peaks_err = self.get_peaks_error(curr_true, curr_pred, square = False)
-            errors.append({
-                'mse': mse,
-                'hr_err': hr_err,
-                'hrv_err': hrv_err,
-                'peaks_err': peaks_err
-            })
-
-        return errors
-
-    def xgb_validate(self):
-
-        test_X = self.test_X
-        test_y = self.test_y
-        nsplits = int(len(test_X) / self.split_size)
-        
-        errors = []
-        for i in range(nsplits):
-            curr_X = xgb.DMatrix(test_X[i * self.split_size: (i + 1) * self.split_size, :])
+            curr_X = xgb.DMatrix(self.test_X[i * self.split_size: (i + 1) * self.split_size, :])
             curr_pred = self.predict(curr_X)
-            curr_true = test_y[i * self.split_size: (i + 1) * self.split_size]
+            curr_true = self.test_y[i * self.split_size: (i + 1) * self.split_size]
             curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 5, use_bandpass = True)
             
+            # get each error and aggregate into a dict
             mse = np.mean(np.square(curr_true - curr_pred))
             hr_err = self.get_hr_error(curr_true, curr_pred, square = False)
             hrv_err = self.get_hrv_error(curr_true, curr_pred, square = False)
@@ -430,7 +294,11 @@ class LonePineGBM:
 
         return errors
 
-    def plot_loss(self):
+    def plot_hr_loss(self):
+        """
+        Plot the training and test HR loss for the model across each boosting round. 
+        """
+            
         if self.training_loss is not None and self.test_loss is not None:
             training_loss_normed = min_max_scale(self.training_loss)
             test_loss_normed = min_max_scale(self.test_loss)
@@ -439,25 +307,26 @@ class LonePineGBM:
             plt.legend()
         
     def get_model_stats(self):
+        """
+        Get the model stats, including the best test loss, the min and max tree depths, and feature importances.
+        """
 
-        model_info = self.gbm.dump_model()
+        model_info = json.loads(self.booster.get_dump(dump_format = 'json'))
         tree_depths = []
 
-        for tree_info in model_info['tree_info']:
-            tree_structure = tree_info['tree_structure']
+        for tree_info in model_info:
             
-            # Recursive function to compute the depth of a tree
-            def calculate_depth(node, current_depth=0):
-                if 'leaf_value' in node:
+            # compute the depth of a tree
+            def calculate_depth(node, current_depth = 0):
+                if 'leaf' in node:
                     return current_depth
                 else:
-                    left_depth = calculate_depth(node['left_child'], current_depth + 1)
-                    right_depth = calculate_depth(node['right_child'], current_depth + 1)
+                    left_depth = calculate_depth(node['children'][0], current_depth + 1)
+                    right_depth = calculate_depth(node['children'][1], current_depth + 1)
                     return max(left_depth, right_depth)
 
-            tree_depth = calculate_depth(tree_structure)
+            tree_depth = calculate_depth(tree_info)
             tree_depths.append(tree_depth)
-        
 
         print(f'Best test loss: {min(self.test_loss)}\n')
         print('Tree depth stats:')
@@ -468,34 +337,31 @@ class LonePineGBM:
         display(self.get_feature_importances())
     
     def get_feature_importances(self):
-        importances = self.gbm.feature_importance(importance_type='gain')
-        feature_importances = pd.DataFrame({'feature': self.features, 'importance': importances})
-        feature_importances = feature_importances.sort_values('importance', ascending=False)
-        return feature_importances
+        feature_importances = self.booster.get_score(importance_type='gain')
+        feature_importances = sorted(feature_importances.items(), key = lambda kv: kv[1], reverse = True)
+        return pd.DataFrame(feature_importances, columns = ['feature', 'importance'])
     
     def hr_error_eval_metric(self, y_pred, eval_data):
+        """
+        Format HR error as an eval metric.
+        """
+        
         y_true = eval_data.get_label()
         nsplits = int(len(y_pred) / self.split_size)
         hr_err = []
+        
         for i in range(nsplits):
             curr_pred = y_pred[i * self.split_size: (i + 1) * self.split_size]
             curr_true = y_true[i * self.split_size: (i + 1) * self.split_size]
             curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 10, use_bandpass = True)
             hr_err.append(self.get_hr_error(curr_true, curr_pred, square = False))
-        return 'hr_err', np.mean(hr_err), False
-    
-    def hr_error_eval_metric_xgb(self, y_pred, eval_data):
-        y_true = eval_data.get_label()
-        nsplits = int(len(y_pred) / self.split_size)
-        hr_err = []
-        for i in range(nsplits):
-            curr_pred = y_pred[i * self.split_size: (i + 1) * self.split_size]
-            curr_true = y_true[i * self.split_size: (i + 1) * self.split_size]
-            curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 10, use_bandpass = True)
-            hr_err.append(self.get_hr_error(curr_true, curr_pred, square = False))
+        
         return 'hr_err', np.mean(hr_err)
     
     def get_hr_error(self, y_true, y_pred, square = True):
+        """
+        Get the raw HR error. Optional squaring.
+        """
 
         true_peaks, _ = self.get_true_peaks(y_true)
         pred_peaks, _ = self.get_predicted_peaks(y_pred)
@@ -517,6 +383,11 @@ class LonePineGBM:
         return abs(true_hr - pred_hr)
     
     def get_peaks_error(self, y_true, y_pred, square = True):
+        """
+        Get the "peaks error." This is just the difference in the number of peaks
+        detected between the predictions and the ground truth.
+        """
+
         true_peaks, _ = self.get_true_peaks(y_true)
         pred_peaks, _ = self.get_predicted_peaks(y_pred)
         if square:
@@ -524,6 +395,9 @@ class LonePineGBM:
         return abs(len(true_peaks) - len(pred_peaks))
     
     def get_hrv_error(self, y_true, y_pred, square = True):
+        """
+        Error metric for HRV.
+        """
 
         true_peaks, _ = self.get_true_peaks(y_true)
         pred_peaks, _ = self.get_predicted_peaks(y_pred)
@@ -545,15 +419,20 @@ class LonePineGBM:
         return abs(true_hrv - pred_hrv)
     
     def process_signal(self, y_true, y_pred, smoothing_window = 10, use_bandpass = False):
-    
+        """
+        Process predictions and ground truth signal together. Note that the same processing isn't
+        applied to both signals.
+        """
+
+        # process the predictions
         orig_len = len(y_pred)
-        # y_pred = ppg_to_bvp(y_pred, 64)
         y_pred = n_moving_avg(y_pred, smoothing_window)
         y_pred = resample(y_pred, orig_len)
         if use_bandpass:
             y_pred = bandpass(y_pred, 64, [self.min_bandpass_freq, self.max_bandpass_freq], self.bandpass_order)
         y_pred = min_max_scale(y_pred)
         
+        # process the ground truth
         y_true = n_moving_avg(y_true, 20)
         y_true = resample(y_true, orig_len)
         if use_bandpass:
@@ -563,16 +442,22 @@ class LonePineGBM:
         return y_true, y_pred
     
     def get_predicted_peaks(self, signal):
-        return get_peaks_v2(signal, 64, 3.0, -1, prominence = self.predicted_peaks_prominence, with_min_dist = True, with_valleys = False)
+        return get_peaks_for_hr(signal, 64, 3.0, -1, prominence = self.predicted_peaks_prominence, with_min_dist = True, with_valleys = False)
+    
     def get_true_peaks(self, signal):
-        return get_peaks_v2(signal, 64, 3.0, -1, prominence = self.true_peaks_prominence, with_min_dist = True, with_valleys = False)
+        return get_peaks_for_hr(signal, 64, 3.0, -1, prominence = self.true_peaks_prominence, with_min_dist = True, with_valleys = False)
 
     def prepare_dataset_from_subjects(self, truths, data_beg = 1000, data_end = 2000):
+        """
+        Prepare dataset from the given list of subjects.
+        """
+
         data_arr = []
         for i in range(len(truths)):    
-            truth = truths[i]
+    
             data = truth.prepare_data_for_ml(self.num_feats_per_channel, self.skip_amount)
             data = data.iloc[data_beg: data_end, :]
             data['subject'] = i + 1
             data_arr.append(data)
+        
         return pd.concat(data_arr)
