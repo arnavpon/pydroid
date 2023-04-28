@@ -4,14 +4,21 @@ Wrapper class for the XGBoost wrapper, called MoodBoost since it's for Mood Trig
 April 27, 2023
 """
 
+from datetime import datetime
+import json
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import random
+from scipy.signal import resample
 import xgboost as xgb
 
 from losses import LossFactory
 from peaks import get_peaks_for_hr
+from signal_pross import bandpass, get_hrv, min_max_scale, n_moving_avg
     
 
-class LonePineGBM:
+class MoodBoost:
     
     def __init__(self, truths, label_col = 'bvp', subject_col = 'subject',
                 
@@ -59,7 +66,6 @@ class LonePineGBM:
 
         # XGBoost hyperparams
         self.max_depth = max_depth
-        self.num_leaves = num_leaves
         self.max_bin = max_bin
 
         # hyperparams for memory features from raw RGB
@@ -111,19 +117,20 @@ class LonePineGBM:
 
             # create batch data and label
             batch_indices = [idx for split in batch_splits for idx in split]
-            batch_rows = self.given_data.iloc[train_indices].drop(columns = [self.subject_col])
-            batch_X = training_rows.drop(columns = [self.label_col]).to_numpy()
-            batch_y = training_rows[self.label_col].to_numpy()
+            batch_rows = self.given_data.iloc[batch_indices].drop(columns = [self.subject_col])
+            batch_X = batch_rows.drop(columns = [self.label_col]).to_numpy()
+            batch_y = batch_rows[self.label_col].to_numpy()
 
-            # create XGBoost DMatrix for batch data and add the list of training sets
-            batch_data = xgb.DMatrix(batch_X, batch_y)
-            self.train_data.append(batch_data)
+            # save batch X and y as tuples for making a DMatrix later
+            self.train_data.append((batch_X, batch_y))
 
         # create the testing dataset
         test_indices = [idx for split in self.test_splits for idx in split]
         test_rows = self.given_data.iloc[test_indices].drop(columns = [self.subject_col])
         self.test_X = test_rows.drop(columns = [self.label_col]).to_numpy()
         self.test_y = test_rows[self.label_col].to_numpy()
+
+        # save the testing dataset as a DMatrix
         self.test_data = xgb.DMatrix(self.test_X, self.test_y)
 
         # initialize the loss function for the model
@@ -172,26 +179,33 @@ class LonePineGBM:
             'max_bin': self.max_bin,
         }
 
-        for batch_data in self.train_data:
+        met = {}
+
+        for i, (batch_X, batch_y) in enumerate(self.train_data):
+            print(f'\n\nOn batch {i + 1} of {len(self.train_data)}:')
+
+            batch_dmatrix = xgb.DMatrix(batch_X, batch_y)
             
             # train the model
             self.model = xgb.train(
                 self.params,
-                batch_data,
+                batch_dmatrix,
                 num_boost_round = self.n_estimators,
                 early_stopping_rounds = self.early_stopping_rounds,
                 feval = self.hr_error_eval_metric,
                 verbose_eval = 5,
-                evals = [(batch_data, 'train'), (self.test_data, 'test')],
+                evals = [(batch_dmatrix, 'train'), (self.test_data, 'test')],
                 xgb_model = self.model,  # for providing initial parameters from which to start (or None, if it's first iteration)
-                obj = self.loss
+                obj = self.loss,
+                evals_result = met
             )
 
             if self.finetune:
+                print('Fintuning...')
                 
                 # make a copy of the model and get predictions on the current batch
                 model_copy = self.model.copy()
-                pred = gbm_copy.predict(batch_data)
+                pred = model_copy.predict(batch_dmatrix)
 
                 # initialize an array to hold the new, adjqusted targets for finetuning step
                 new_targ = np.ones(len(pred))
@@ -199,17 +213,14 @@ class LonePineGBM:
                 # get the number of splits in the current batch
                 nsplits = len(pred) // self.split_size
                 
-                # get labels from the current batch
-                labels = batch_data.get_label()
-                
                 # use the difference between the labels and predictions as the new targets
                 for i in range(nsplits):
                     pred_curr = pred[i * self.split_size: (i + 1) * self.split_size]
-                    label_curr = labels[i * self.split_size: (i + 1) * self.split_size]
+                    label_curr = batch_y[i * self.split_size: (i + 1) * self.split_size]
                     new_targ[i * self.split_size: (i + 1) * self.split_size] = label_curr - pred_curr
 
                 # create a new DMatrix with the adjusted targets
-                new_batch_data = xgb.DMatrix(batch_data.get_data(), new_targ)
+                new_batch_data = xgb.DMatrix(batch_X, new_targ)
 
                 self.model = xgb.train(
                     self.params,
@@ -223,6 +234,8 @@ class LonePineGBM:
                     obj = self.mse_loss
                 )
 
+        self.training_loss = met['train']['hr_err']
+        self.test_loss = met['test']['hr_err']
         print(f'Finished training in {datetime.today() - t1}')
 
     def predict(self, X):
@@ -300,10 +313,8 @@ class LonePineGBM:
         """
             
         if self.training_loss is not None and self.test_loss is not None:
-            training_loss_normed = min_max_scale(self.training_loss)
-            test_loss_normed = min_max_scale(self.test_loss)
-            plt.plot(training_loss_normed, label = 'training loss')
-            plt.plot(test_loss_normed, label = 'test loss')
+            plt.plot(self.training_loss, label = 'training loss')
+            plt.plot(self.test_loss, label = 'test loss')
             plt.legend()
         
     def get_model_stats(self):
@@ -311,33 +322,15 @@ class LonePineGBM:
         Get the model stats, including the best test loss, the min and max tree depths, and feature importances.
         """
 
-        model_info = json.loads(self.booster.get_dump(dump_format = 'json'))
+        model_info = self.model.get_dump(dump_format = 'json')
         tree_depths = []
 
-        for tree_info in model_info:
-            
-            # compute the depth of a tree
-            def calculate_depth(node, current_depth = 0):
-                if 'leaf' in node:
-                    return current_depth
-                else:
-                    left_depth = calculate_depth(node['children'][0], current_depth + 1)
-                    right_depth = calculate_depth(node['children'][1], current_depth + 1)
-                    return max(left_depth, right_depth)
-
-            tree_depth = calculate_depth(tree_info)
-            tree_depths.append(tree_depth)
-
         print(f'Best test loss: {min(self.test_loss)}\n')
-        print('Tree depth stats:')
-        print('Min tree depth:', min(tree_depths))
-        print('Max tree depth:', max(tree_depths))
-        print('Avg tree depth:', np.mean(tree_depths))
         print('\nFeature importances:')
         display(self.get_feature_importances())
     
     def get_feature_importances(self):
-        feature_importances = self.booster.get_score(importance_type='gain')
+        feature_importances = self.model.get_score(importance_type = 'gain')
         feature_importances = sorted(feature_importances.items(), key = lambda kv: kv[1], reverse = True)
         return pd.DataFrame(feature_importances, columns = ['feature', 'importance'])
     
@@ -455,6 +448,7 @@ class LonePineGBM:
         data_arr = []
         for i in range(len(truths)):    
     
+            truth = truths[i]
             data = truth.prepare_data_for_ml(self.num_feats_per_channel, self.skip_amount)
             data = data.iloc[data_beg: data_end, :]
             data['subject'] = i + 1

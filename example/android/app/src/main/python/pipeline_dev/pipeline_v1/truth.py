@@ -170,8 +170,6 @@ class IeeeGroundTruth:
             rgb_upsampled[:, col] = self.upsample_signal(
                 self.rgb[:, col],
                 len(self.bvp),
-                old_fs = self.rgb_freq,
-                new_fs = self.bvp_freq
             )
         
         # get "velocity" and "acceleration" features of rgb
@@ -273,7 +271,7 @@ class IeeeGroundTruth:
         performance seemed better with the postprocessng for some reason.
         """
 
-        chrom = chrominance(rgb, CHROM_SETTINGS, None, False)
+        chrom = chrominance(rgb, CHROM_SETTINGS)
 
         # postprocessing
         chrom = apply_wavelet(chrom, 'db2', 2)
