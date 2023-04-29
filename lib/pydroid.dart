@@ -125,25 +125,19 @@ class Pydroid {
   static Future<List<dynamic>> analyzeVideo(String videoPath) async {
     final result = await executeInBackground(
         'VideoFaceDetection', {"vid_path": videoPath});
-    print('we got here');
-    
+
     if (result[KEY_OUTPUT_ERROR] == null) {
       List<dynamic> value = result[KEY_OUTPUT_VALUE];
-      log("[dart] we got the return");
-      print(value);
       return value;
     } else {
-      log("[dart] error returned");
       return [{}];
     }
   }
 
   static Future<Rect> analyzeStream(String path, String tracker_path) async {
-
     print('Executing...');
     final result = await executeInBackground(
-      'AnalyzeStream', {"img_path": path, "tracker_path": tracker_path}
-    );
+        'AnalyzeStream', {"img_path": path, "tracker_path": tracker_path});
 
     if (result[KEY_OUTPUT_ERROR] == null) {
       log("[dart] Converting object to rect...");
@@ -160,4 +154,3 @@ class Pydroid {
     }
   }
 }
-

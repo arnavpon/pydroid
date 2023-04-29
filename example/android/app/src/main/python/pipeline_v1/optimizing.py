@@ -2,6 +2,7 @@
 Optimizatin model with both the subject-wise cross-validation and Bayesian optimization.
 """
 
+import numpy as np
 from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
