@@ -67,7 +67,7 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, color_fi
     
     tracker = _init_correlation_tracker(frame, bbox)
     
-    display_frame(frame, bbox)
+    # display_frame(frame, bbox)
 
     if face_renew is not None:
         frames_till_renewal = face_renew - 1
@@ -101,23 +101,29 @@ def track_video(video_path = None, channel_filepath = DEFAULT_CSV_NAME, color_fi
             if curr_img is None:
                 continue
             
-            if show_frames:
-                display_frame(curr_img)
-                if cv2.waitKey(10) == 27:
-                    break
+            # if show_frames:
+            #     # display_frame(curr_img)
+            #     if cv2.waitKey(10) == 27:
+            #         break
     
-    print('we at the end')
-    pd.DataFrame(data = channel_data).to_csv(channel_filepath, index = False)
+    
+    data = pd.DataFrame(data = channel_data)
+    if channel_filepath is not None:
+        data.to_csv(channel_filepath, index = False)
     video.release()
+    return data
 
 def _init_correlation_tracker(frame, bbox):
     """
     Initialize the correlation tracker
     """
-    
+    print('initializing the tracker')
     tracker = dlib.correlation_tracker()
+    print('making the rect')
     rect = dlib.rectangle(int(bbox['x1']), int(bbox['y1']), int(bbox['x2']), int(bbox['y2']))
+    print('starting the tracker')
     tracker.start_track(frame, rect)
+    print('returning')
     return tracker
 
 
@@ -192,11 +198,12 @@ def _get_cropped_channels(img, bbox, roi_percentage):
         'y2': yi + yh
     }, channels
 
-def _get_forehead_bbox(vid, color_filter, iter_lim = 100, resize = False):
+def _get_forehead_bbox(vid, color_filter, iter_lim = 300, resize = False):
     print('inside forehead bbox')
     # search the first iter_lim frames for a face
     bbox_dict = None
-    for _ in range(iter_lim):
+    for i in range(iter_lim):
+        print('on iteration', i)
         
         success, frame = vid.read()
         if not success:
@@ -220,10 +227,14 @@ def _get_forehead_bbox(vid, color_filter, iter_lim = 100, resize = False):
             print(e) 
             continue
 
+    print('we got to the this part')
+    print('printing bbox dict')
+    print(bbox_dict)
     if bbox_dict is None:
         print(f'Face not found in first {iter_lim} frames.')
         return None, (False, None)
     else:
+        print('got in the else')
         return bbox_dict, (success, img)
 
 

@@ -5,17 +5,17 @@ April 27, 2023
 """
 
 from datetime import datetime
-import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pickle
 import random
 from scipy.signal import resample
 import xgboost as xgb
 
-from losses import LossFactory
-from peaks import get_peaks_for_hr
-from signal_pross import bandpass, get_hrv, min_max_scale, n_moving_avg
+from pipeline_v1.losses import LossFactory
+from pipeline_v1.peaks import get_peaks_for_hr
+from pipeline_v1.signal_pross import bandpass, get_hrv, min_max_scale, n_moving_avg
     
 
 class MoodBoost:
@@ -106,7 +106,7 @@ class MoodBoost:
         
         # create batches by applying a similar splitting method to just the 
         # training data as is used in the self.split_data() method
-        for batch_num in range(batches):
+        for _ in range(batches):
             
             # curr batch is a random sample of the training splits
             batch_split_idxs = random.sample(range(len(self.train_splits)), batch_size)
@@ -241,12 +241,8 @@ class MoodBoost:
     def predict(self, X):
         return self.model.predict(X)
     
-    def save(self, model_file = 'model.xgb'):
+    def save(self, model_file = 'moodboost.pkl'):
         self.model.save_model(model_file)
-    
-    def load_from_file(self, model_file):
-        self.model = xgb.Booster()
-        self.model.load_model(model_file)
 
     def eval(self):
         """
@@ -322,12 +318,9 @@ class MoodBoost:
         Get the model stats, including the best test loss, the min and max tree depths, and feature importances.
         """
 
-        model_info = self.model.get_dump(dump_format = 'json')
-        tree_depths = []
-
         print(f'Best test loss: {min(self.test_loss)}\n')
         print('\nFeature importances:')
-        display(self.get_feature_importances())
+        print(self.get_feature_importances())
     
     def get_feature_importances(self):
         feature_importances = self.model.get_score(importance_type = 'gain')
@@ -418,19 +411,21 @@ class MoodBoost:
         """
 
         # process the predictions
-        orig_len = len(y_pred)
-        y_pred = n_moving_avg(y_pred, smoothing_window)
-        y_pred = resample(y_pred, orig_len)
-        if use_bandpass:
-            y_pred = bandpass(y_pred, 64, [self.min_bandpass_freq, self.max_bandpass_freq], self.bandpass_order)
-        y_pred = min_max_scale(y_pred)
+        if y_pred is not None:
+            orig_len = len(y_pred)
+            y_pred = n_moving_avg(y_pred, smoothing_window)
+            y_pred = resample(y_pred, orig_len)
+            if use_bandpass:
+                y_pred = bandpass(y_pred, 64, [self.min_bandpass_freq, self.max_bandpass_freq], self.bandpass_order)
+            y_pred = min_max_scale(y_pred)
         
         # process the ground truth
-        y_true = n_moving_avg(y_true, 20)
-        y_true = resample(y_true, orig_len)
-        if use_bandpass:
-            y_true = bandpass(y_true, 64, [self.min_bandpass_freq, self.max_bandpass_freq], self.bandpass_order)
-        y_true = min_max_scale(y_true)
+        if y_true is not None:
+            y_true = n_moving_avg(y_true, 20)
+            y_true = resample(y_true, orig_len)
+            if use_bandpass:
+                y_true = bandpass(y_true, 64, [self.min_bandpass_freq, self.max_bandpass_freq], self.bandpass_order)
+            y_true = min_max_scale(y_true)
         
         return y_true, y_pred
     

@@ -1,19 +1,17 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.signal import resample
 
-from chrominance import chrominance, CHROM_SETTINGS
-from ieee_video_start_frames import StartFrames
-from signal_pross import (
+from pipeline_v1.chrominance import chrominance, CHROM_SETTINGS
+from pipeline_v1.ieee_video_start_frames import StartFrames
+from pipeline_v1.signal_pross import (
     normalize_signal,
     detrend_w_poly,
-    normalize_amplitude_to_1,
     bandpass,
     min_max_scale,
     perform_ica
 )
-from wavelet import apply_wavelet
+from pipeline_v1.wavelet import apply_wavelet
 
 RGB_RATE = 30  # video frame rate
 BVP_RATE = 64  # ground truth BVP sample rate
@@ -103,6 +101,16 @@ class IeeeGroundTruth:
         self.bvp = pd.Series(self.bvp.flatten()).interpolate(method = 'linear').to_numpy()
         
     def process_rgb(self, minmax = False, use_wavelet = True, use_bandpass = False):
+        self.rgb = self.process_rgb_general(
+            self.rgb,
+            minmax = minmax,
+            use_wavelet = use_wavelet,
+            use_bandpass = use_bandpass,
+            rgb_freq = self.rgb_freq
+        )
+
+    @staticmethod
+    def process_rgb_general(given_rgb, minmax = False, use_wavelet = True, use_bandpass = False, rgb_freq = RGB_RATE):
         """
         Preprocessing for RGB data. Turning minmax on or off toggles whether we use minmax scaling or if
         we normalize by subtracting the mean and dividing by the standard deviation. Turning use_wavelet on
@@ -110,14 +118,16 @@ class IeeeGroundTruth:
         I use minmax = False, use_wavelet = True, and use_bandpass = False in the thesis.
         """
 
+        rgb = given_rgb.copy()
+
         # detrend each channel
-        for i in range(self.rgb.shape[1]):
-            self.rgb[:, i] = detrend_w_poly(self.rgb[:, i])
+        for i in range(rgb.shape[1]):
+            rgb[:, i] = detrend_w_poly(rgb[:, i])
         
         if use_wavelet:
-            for i in range(self.rgb.shape[1]):
-                self.rgb[:, i] = apply_wavelet(
-                    self.rgb[:, i],
+            for i in range(rgb.shape[1]):
+                rgb[:, i] = apply_wavelet(
+                    rgb[:, i],
 
                     # playing with these params could yield different or maybe better results,
                     # I didn't get a chance to do more with them 
@@ -126,20 +136,22 @@ class IeeeGroundTruth:
                 )
         
         if use_bandpass:
-            for i in range(self.rgb.shape[1]):
-                self.rgb[:, i] = bandpass(
-                    self.rgb[:, i],
-                    self.rgb_freq,
+            for i in range(rgb.shape[1]):
+                rgb[:, i] = bandpass(
+                    rgb[:, i],
+                    rgb_freq,
                     [0.5, 3],  # altering this could yield better results
                     order = 4
                 )
 
         if minmax:
-            for i in range(self.rgb.shape[1]):
-                self.rgb[:, i] = min_max_scale(self.rgb[:, i])
+            for i in range(rgb.shape[1]):
+                rgb[:, i] = min_max_scale(rgb[:, i])
         else:
-            for i in range(self.rgb.shape[1]):
-                self.rgb[:, i] = normalize_signal(self.rgb[:, i])
+            for i in range(rgb.shape[1]):
+                rgb[:, i] = normalize_signal(rgb[:, i])
+        
+        return rgb
 
     
     def process_bvp(self):
@@ -172,6 +184,39 @@ class IeeeGroundTruth:
                 len(self.bvp),
             )
         
+        df = self.prepare_data_for_ml_general(
+            rgb_upsampled,
+            num_feats_per_channel,
+            skip_amount,
+            upsample = False,
+            rgb_freq = self.rgb_freq,
+            bvp_freq = self.bvp_freq
+        )
+
+        bvp_in_use = self.bvp[2: ]  # discard first 2 elements to align with vel and acc feats
+        bvp_in_use = bvp_in_use[num_feats_per_channel * skip_amount: ]  # to align with memory feats now
+        df['bvp'] = bvp_in_use
+        return df
+
+    @staticmethod
+    def prepare_data_for_ml_general(rgb, num_feats_per_channel = 5, skip_amount = 10, upsample = True,
+                                    rgb_freq = RGB_RATE, bvp_freq = BVP_RATE):
+
+        if upsample:
+
+            # get new length for the rgb
+            new_len = int((bvp_freq / rgb_freq) * len(rgb))
+            
+            # init new array to hold upsampled rgb
+            rgb_upsampled = np.zeros((new_len, rgb.shape[1]))
+            
+            # upsample each channel individually
+            for col in range(rgb_upsampled.shape[1]):
+                rgb_upsampled[:, col] = resample(rgb[:, col], new_len)
+        
+        else:
+            rgb_upsampled = rgb.copy()
+
         # get "velocity" and "acceleration" features of rgb
         rgb_vel = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
         rgb_acc = np.zeros((rgb_upsampled.shape[0] - 2, rgb_upsampled.shape[1]))
@@ -181,23 +226,20 @@ class IeeeGroundTruth:
             rgb_vel[:, col] = vel
             rgb_acc[:, col] = acc
 
-
         rgb_upsampled = rgb_upsampled[2: , :]  # discard first 2 elements to align with vel and acc feats
-        self.bvp = self.bvp[2: ]  # discard first 2 elements to align with vel and acc feats
         
         # get chrom and ICA feats
-        chrom = self.prepare_chrominance_as_feature(rgb_upsampled)
+        chrom = IeeeGroundTruth.prepare_chrominance_as_feature(rgb_upsampled)
         ica_feat = perform_ica(rgb_upsampled)
 
         # get memory feats
-        mems = self.get_memory_features(rgb_upsampled, num_feats_per_channel, skip_amount)
+        mems = IeeeGroundTruth.get_memory_features(rgb_upsampled, num_feats_per_channel, skip_amount)
         
         # adjust length of all features to align with memory feats
         rgb_upsampled = rgb_upsampled[num_feats_per_channel * skip_amount: , :]
         chrom = chrom[num_feats_per_channel * skip_amount: ]
         rgb_vel = rgb_vel[num_feats_per_channel * skip_amount: , :]
         rgb_acc = rgb_acc[num_feats_per_channel * skip_amount: , :]
-        bvp_in_use = self.bvp[num_feats_per_channel * skip_amount: ]
         ica_feat = ica_feat[num_feats_per_channel * skip_amount: ]
 
         # collect the data (except memory) in a map
@@ -217,10 +259,11 @@ class IeeeGroundTruth:
 
         for k, v in mems.items():
             data[k] = v
-        data['bvp'] = bvp_in_use
+        
         return pd.DataFrame(data)
 
-    def get_memory_features(self, rgb_upsampled, num_feats_per_channel, skip_amount):
+    @staticmethod
+    def get_memory_features(rgb_upsampled, num_feats_per_channel, skip_amount):
         """
         Get the memory features, as described above.
         """
@@ -244,19 +287,19 @@ class IeeeGroundTruth:
 
     def get_bvp_data(self):
         return pd.read_csv(
-            f'validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/BVP.csv',
+            f'pipeline_v1/validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/BVP.csv',
             header = None
         ).to_numpy()
 
     def get_ibi_data(self):
         return pd.read_csv(
-            f'validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/IBI.csv',
+            f'pipeline_v1/validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/IBI.csv',
             header = None
         ).to_numpy()[1: , 1].flatten()
 
     def get_event_marker_data(self):
         return pd.read_csv(
-            f'validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/tags.csv'
+            f'pipeline_v1/validation_data/IEEE_data/subject_{self.subject:03d}/trial_{self.trial:03d}/empatica_e4/tags.csv'
         ).to_numpy()
 
     @staticmethod

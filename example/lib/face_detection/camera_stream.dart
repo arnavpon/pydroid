@@ -61,17 +61,10 @@ class _VideoPageState extends State<VideoPage> {
       // that recording is finished
       final file = await _cameraController.stopVideoRecording();
       setState(() => _isRecording = false);
-      
-      // get bounding box
-      // NOTE: For now, this is just getting the bounding box for the first
-      //      frame and overlaying just that box onto the camera preview
+
       print('[Dart] Analyzing video...');
       final value = await Pydroid.analyzeVideo(file.path);
-      print('[Dart] Done analyzing video');
-      // setState(() => _faces = value);
       setState(() => _hr = value[0]);
-      print('We now have the hr and its');
-      print(_hr);
 
       // Navigate to the new screen and pass the _hr value
       Navigator.push(

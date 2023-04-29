@@ -11,7 +11,7 @@ import pandas as pd
 from typing import Tuple
 
 # local modules
-from signal_pross import bandpass, detrend_w_poly, normalize_signal
+from pipeline_v1.signal_pross import bandpass, detrend_w_poly, normalize_signal
 
 
 CHROM_SETTINGS = {

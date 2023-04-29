@@ -6,7 +6,6 @@ March 6, 2023
 
 import numpy as np
 import pywt
-from scipy.signal import butter, filtfilt
 
 
 def apply_wavelet(signal, wave = 'db2', level = 1):

@@ -6,7 +6,7 @@ from skopt import gp_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 
-from mb import MoodBoost
+from pipeline_v1.mb import MoodBoost
 
 
 HYPERPARAM_SPACE = [
