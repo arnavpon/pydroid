@@ -8,7 +8,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pickle
 import random
 from scipy.signal import resample
 import xgboost as xgb
@@ -16,7 +15,7 @@ import xgboost as xgb
 from pipeline_v1.losses import LossFactory
 from pipeline_v1.peaks import get_peaks_for_hr
 from pipeline_v1.signal_pross import bandpass, get_hrv, min_max_scale, n_moving_avg
-    
+
 
 class MoodBoost:
     
@@ -78,6 +77,7 @@ class MoodBoost:
 
         # process IEEE data; exclude subject if specified
         self.given_data = self.prepare_dataset_from_subjects(truths, data_beg = data_beg, data_end = data_end)
+        print(f'Number of samples in dataset: {len(self.given_data)}')
         if self.excluded_subject is not None:
             self.given_data = self.given_data[self.given_data[self.subject_col] != self.excluded_subject]
         
@@ -272,21 +272,27 @@ class MoodBoost:
         
         return np.mean(np.square(mses)), np.mean(errs), np.mean(np.square(errs))
 
-    def validate(self):
+    def validate(self, val_data = None):
         """
         Get validation error for the model for use in cross-validation.
         """
 
+        if val_data is None:
+            valX = self.test_X
+            valy = self.test_y
+        else:
+            valX, valy = val_data
+
         # get number of splits in the test set
-        nsplits = int(len(self.test_X) / self.split_size)
+        nsplits = int(len(valX) / self.split_size)
         
         # init array for collecting errors
         errors = []
         for i in range(nsplits):
             
-            curr_X = xgb.DMatrix(self.test_X[i * self.split_size: (i + 1) * self.split_size, :])
+            curr_X = xgb.DMatrix(valX[i * self.split_size: (i + 1) * self.split_size, :])
             curr_pred = self.predict(curr_X)
-            curr_true = self.test_y[i * self.split_size: (i + 1) * self.split_size]
+            curr_true = valy[i * self.split_size: (i + 1) * self.split_size]
             curr_true, curr_pred = self.process_signal(curr_true, curr_pred, smoothing_window = 5, use_bandpass = True)
             
             # get each error and aggregate into a dict

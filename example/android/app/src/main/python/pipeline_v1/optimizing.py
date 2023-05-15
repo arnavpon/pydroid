@@ -46,18 +46,30 @@ def SubjectwiseCrossVal(truths, random_state = None, loss_type = 'combined',
     test metric for further analysis.
 
     NOTE: The truths argument are IeeeGroundTruth objects.
+
+    EDIT: truths changed to now contain a dictionary where keys are the subject idx and values are a list of truths,
+    corresponding to that subject's different augmented versions.
     """
     
     # dictionary holds each model trained, per subject
     models = {}
     
-    for subj_idx in range(len(truths)):
-        models[subj_idx + 1] = []
+    for subj_to_exlude in truths:
+        
+        # init entry for this subj index
+        models[subj_to_exlude] = []
+
+        training_truths = []
+        for subj in truths:
+            if subj == subj_to_exlude:
+                continue
+            training_truths += truths[subj]['training']
+
         
         for _ in range(rounds_per_model):
 
             mod = MoodBoost(
-                truths = truths,
+                truths = training_truths,
                 random_state = random_state,
                 loss_type = loss_type,
                 n_estimators = n_estimators,
@@ -80,30 +92,33 @@ def SubjectwiseCrossVal(truths, random_state = None, loss_type = 'combined',
                 max_bin = max_bin,
                 num_feats_per_channel = num_feats_per_channel,
                 skip_amount = skip_amount,
-                excluded_subject = subj_idx + 1
             )
             
             mod.fit()
-            models[subj_idx + 1].append(mod)
+            models[subj_to_exlude].append(mod)
     
     # dictionary holds the validation results for each model, per subject
     model_performances = {}
-    for subj_idx in models:
-        model_performances[subj_idx] = []
+    for subject in models:
         
-        for mod in models[subj_idx]:
-            
-            if collect:
-                model_performances[subj_idx].append(mod.validate())
-            else:
-                model_performances[subj_idx].append(mod.eval())
+        # track the model performances for this subject
+        model_performances[subject] = {}
 
-            
-    if collect:
-        return model_performances
+        # collect all the training and testing triths for this subject
+        testing_truths = truths[subject]['training'] + truths[subject]['testing']
+        
+        for mod_num, mod in enumerate(models[subject]):
+            model_performances[subject][mod_num] = []
 
-    mean_hr_score = np.mean([model_performances[subj_idx][i][1] for subj_idx in model_performances for i in range(rounds_per_model)])
-    return mean_hr_score, models, model_performances
+            for testing_truth in testing_truths:
+                
+                truth_data = testing_truth.prepare_data_for_ml(8, 12)
+                valX = truth_data.drop(columns = ['bvp']).to_numpy()
+                valY = truth_data['bvp'].to_numpy()
+                errs = mod.validate(val_data = (valX, valY))
+                model_performances[subject][mod_num].append(errs)
+            
+    return model_performances
 
 
 

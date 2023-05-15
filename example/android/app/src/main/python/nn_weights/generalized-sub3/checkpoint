@@ -1,0 +1,2 @@
+model_checkpoint_path: "shared_body"
+all_model_checkpoint_paths: "shared_body"

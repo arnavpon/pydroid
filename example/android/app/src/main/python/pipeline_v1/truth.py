@@ -23,12 +23,15 @@ class IeeeGroundTruth:
     it lines up the RGB data with the corresponding BVP data.
     """
 
-    def __init__(self, subject, trial = 1, directory = 'channel_data3'):
+    def __init__(self, subject, trial = 1, directory = 'channel_data3', noisy = False, dim = False, bright = False):
         
         # IEEE dataset organizes the subjects into subjects and trials
         # we only use the first trial for each subject
         self.subject = subject
         self.trial = trial
+        self.noisy = noisy
+        self.dim = dim
+        self.bright = bright
         
         self.directory = directory
         self.rgb_freq = RGB_RATE
@@ -43,7 +46,15 @@ class IeeeGroundTruth:
         """
 
         # get rgb, and ground truth bvp and ibi data from files
-        rgb = self.get_rgb_data()
+        if self.noisy:
+            rgb = self.get_rgb_noisy_data()
+        elif self.dim:
+            rgb = self.get_rgb_dim_data()
+        elif self.bright:
+            rgb = self.get_rgb_bright_data()
+        else:
+            rgb = self.get_rgb_data()
+
         bvp = self.get_bvp_data()
         self.ibis = self.get_ibi_data()
 
@@ -283,6 +294,21 @@ class IeeeGroundTruth:
     def get_rgb_data(self):
         return pd.read_csv(
             f'{self.directory}/ieee-subject-{self.subject:03d}-trial-{self.trial:03d}.csv'
+        ).to_numpy()
+
+    def get_rgb_noisy_data(self):
+        return pd.read_csv(
+            f'{self.directory}/ieee-subject-{self.subject:03d}-trial-{self.trial:03d}-mean-0-std-30.csv'
+        ).to_numpy()
+    
+    def get_rgb_dim_data(self):
+        return pd.read_csv(
+            f'{self.directory}/ieee-subject-{self.subject:03d}-trial-{self.trial:03d}-dim-60.csv'
+        ).to_numpy()
+    
+    def get_rgb_bright_data(self):
+        return pd.read_csv(
+            f'{self.directory}/ieee-subject-{self.subject:03d}-trial-{self.trial:03d}-bright-60.csv'
         ).to_numpy()
 
     def get_bvp_data(self):

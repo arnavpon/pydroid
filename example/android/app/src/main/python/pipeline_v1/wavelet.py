@@ -35,3 +35,25 @@ def _wavelet_denoise(signal, wavelet, level):
         level_results.append(sig)
 
     return level_results[-1]
+
+def cwt_morlet_filter(signal, sample_freq = 30, f_min = 0.67, f_max = 4.0, num_steps = 200):
+
+    sampling_period = 1.0 / sample_freq
+
+    # Define the wavelet
+    wavelet = 'morl'
+
+    # Compute the corresponding scales
+    scale_max = pywt.scale2frequency(wavelet, f_min) * sampling_period
+    scale_min = pywt.scale2frequency(wavelet, f_max) * sampling_period
+
+    # Create a range of scales
+    scales = np.linespace(scale_min, scale_max, num_steps)
+
+    # Compute the CWT
+    cwt_coeffs, _ = pywt.cwt(signal, scales, wavelet, sampling_period)
+
+    # Filter the signal
+    filtered_signal = np.sum(cwt_coeffs, axis=0)
+
+    return filtered_signal

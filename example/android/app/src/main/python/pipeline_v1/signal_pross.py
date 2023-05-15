@@ -157,7 +157,7 @@ def get_hr_from_fourier(signal, fr, min_freq = 0.7, max_freq = 3):
     return HR
 
 
-def perform_ica(rgb):
+def perform_ica(rgb, return_max = True):
     """
     Perform independent component analysis (ICA) using the FastICA algorithm on the 
     given RGB channels.
@@ -167,6 +167,9 @@ def perform_ica(rgb):
 
     ica = FastICA(n_components = rgb.shape[1])
     source_signals = ica.fit_transform(rgb)
+
+    if not return_max:
+        return source_signals
 
     # get power spectra of the independent components
     power_spectra = np.power(np.abs(np.fft.fft(source_signals, axis = 0)), 2)

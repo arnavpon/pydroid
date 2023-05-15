@@ -1,0 +1,2 @@
+model_checkpoint_path: "sub2weights"
+all_model_checkpoint_paths: "sub2weights"

@@ -1,3 +1,7 @@
+"""
+Taken from this GitHub repo: https://github.com/lyprince/sdtw_pytorch
+"""
+
 import torch
 from math import inf
 
