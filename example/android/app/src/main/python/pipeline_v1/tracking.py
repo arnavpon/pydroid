@@ -280,6 +280,7 @@ if __name__ == '__main__':
         sid = f'00{subject}'
         print('subject', sid)
 
+        # change the path to make it work
         path = f'/Users/samuelhmorton/indiv_projects/school/masters/project_rppg/Codes/subject_{sid}/trial_001/video/video.MOV'
         track_video(
             video_path = path,
