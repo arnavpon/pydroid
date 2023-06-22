@@ -16,10 +16,12 @@ import 'package:pydroid_example/face_detection/camera_stream.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MaterialApp(title: "Pydroid Example", home: MyApp()));
+  runApp(const MaterialApp(title: "Pydroid Example", home: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   _MyAppState createState() => _MyAppState();
 }
@@ -82,7 +84,7 @@ class _MyAppState extends State<MyApp> {
           context,
           MaterialPageRoute(
               // builder: (context) => MyHomePage(title: 'Sam')));
-              builder: (context) => VideoPage()));
+              builder: (context) => const VideoPage()));
     }
   }
 

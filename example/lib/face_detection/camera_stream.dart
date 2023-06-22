@@ -1,11 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:pydroid_example/face_detection/show_video.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:pydroid/pydroid.dart';
-import 'package:pydroid_example/face_detection/canvas.dart';
 import 'package:pydroid_example/face_detection/hr_screen.dart';
 
 class VideoPage extends StatefulWidget {
@@ -21,7 +17,7 @@ class _VideoPageState extends State<VideoPage> {
   bool _isRecording = false;
 
   // initialize face box to a box with no area
-  List<dynamic> _faces = [{'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0}];
+  final List<dynamic> _faces = [{'x1': 0, 'y1': 0, 'x2': 0, 'y2': 0}];
   List<dynamic> _hr = [];
   
   // CameraController initialized later

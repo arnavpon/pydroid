@@ -1,6 +1,5 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'dart:developer';
 import 'dart:io';
@@ -27,7 +26,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   Color get _borderColor =>
       ((_face == Rect.zero) ? Colors.red : Colors.green.shade200);
   Rect _face = Rect.zero;
-  Rect _forehead = Rect.zero;
+  final Rect _forehead = Rect.zero;
 
   FacePainter? facePainter;
 

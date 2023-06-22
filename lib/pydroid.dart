@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
-import 'dart:ui';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class Pydroid {
@@ -58,6 +56,8 @@ class Pydroid {
   }
 
   static Future<Object?> runScriptWithArguments() async {
+    return null;
+  
     // use invokeMapMethod to input args
   }
 
@@ -134,10 +134,10 @@ class Pydroid {
     }
   }
 
-  static Future<Rect> analyzeStream(String path, String tracker_path) async {
+  static Future<Rect> analyzeStream(String path, String trackerPath) async {
     print('Executing...');
     final result = await executeInBackground(
-        'AnalyzeStream', {"img_path": path, "tracker_path": tracker_path});
+        'AnalyzeStream', {"img_path": path, "tracker_path": trackerPath});
 
     if (result[KEY_OUTPUT_ERROR] == null) {
       log("[dart] Converting object to rect...");

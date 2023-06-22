@@ -1,6 +1,3 @@
 # ninja log v5
-0	42	1674141859	CMakeFiles/convertImage.dir/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/ios/Classes/converter.c.o	6b3696bef0fdbdce
-42	66	1674141859	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/x86_64/libconvertImage.so	90cbb329dfc9a3e1
-1	67	1674149467	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/x86_64/libconvertImage.so	90cbb329dfc9a3e1
-1	77	1674157110	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/x86_64/libconvertImage.so	90cbb329dfc9a3e1
-1	81	1681954502	/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/build/app/intermediates/cmake/debug/obj/x86_64/libconvertImage.so	90cbb329dfc9a3e1
+0	67	1687445743	CMakeFiles/convertImage.dir/Users/arnavpon/Documents/pydroid/example/ios/Classes/converter.c.o	d7f28edfcb0cdd9b
+67	111	1687445743	/Users/arnavpon/Documents/pydroid/example/build/app/intermediates/cmake/debug/obj/x86_64/libconvertImage.so	aef80d755553ad49

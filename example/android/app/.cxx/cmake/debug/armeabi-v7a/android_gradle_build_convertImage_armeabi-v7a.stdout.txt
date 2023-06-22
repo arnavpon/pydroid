@@ -1,2 +1,2 @@
-ninja: Entering directory `/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/.cxx/cmake/debug/armeabi-v7a'
+ninja: Entering directory `/Users/arnavpon/Documents/pydroid/example/android/app/.cxx/cmake/debug/armeabi-v7a'
 ninja: no work to do.

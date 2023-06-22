@@ -1,8 +1,6 @@
-import 'dart:developer';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class FacePainter extends CustomPainter {
   /// draws the bounds of the face & forehead on a specified canvas

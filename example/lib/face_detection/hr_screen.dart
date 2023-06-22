@@ -20,21 +20,21 @@ class HRScreen extends StatelessWidget {
   final int userHr;
   final double userHRV;
 
-  HRScreen({required this.hr})
+  HRScreen({Key? key, required this.hr})
       : userHr = hr[0].round(),
-        userHRV = hr[1] as double;
+        userHRV = hr[1] as double, super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('HR Screen')),
+      appBar: AppBar(title: const Text('HR Screen')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('User HR: $userHr', style: TextStyle(fontSize: 24)),
-            SizedBox(height: 20),
-            Text('User HRV: ${userHRV.toStringAsFixed(2)}', style: TextStyle(fontSize: 24)),
+            Text('User HR: $userHr', style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 20),
+            Text('User HRV: ${userHRV.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24)),
           ],
         ),
       ),

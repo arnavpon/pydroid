@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:flutter/material.dart';
-import 'package:camera/src/camera_controller.dart';
 import 'package:pydroid/pydroid.dart';
 import 'dart:io';
 import 'package:pydroid_example/face_detection/canvas.dart';
 import 'package:image/image.dart' as imglib;
 
 class CameraScreen extends StatefulWidget {
+  const CameraScreen({Key? key}) : super(key: key);
+
   @override
   _CameraScreenState createState() => _CameraScreenState();
 }
@@ -20,10 +20,11 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isProcessing = false;
 
   Rect _face = Rect.zero;
-  Rect _forehead = Rect.zero;
+  final Rect _forehead = Rect.zero;
   String _path = '';
   String tracker_path = 'tracker.sav';
-  String hardcodedPath = '/data/user/0/com.jacobsonlab.pydroid_example/app_flutter/Pictures/flutter_test';
+  String hardcodedPath =
+      '/data/user/0/com.jacobsonlab.pydroid_example/app_flutter/Pictures/flutter_test';
 
   @override
   void initState() {
@@ -32,7 +33,6 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    
     _cameras = await availableCameras();
     _controller = CameraController(_cameras.last, ResolutionPreset.medium);
 
@@ -44,7 +44,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -55,7 +55,7 @@ class _CameraScreenState extends State<CameraScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text("Camera"),
+        title: const Text("Camera"),
       ),
       body: Column(
         children: <Widget>[
@@ -63,7 +63,7 @@ class _CameraScreenState extends State<CameraScreen> {
             width: 480,
             height: 300,
             child: AspectRatio(
-            child: CustomPaint(
+              child: CustomPaint(
                 foregroundPainter: FacePainter(
                   context,
                   _face,
@@ -88,7 +88,7 @@ class _CameraScreenState extends State<CameraScreen> {
               // child: const SizedBox.shrink(),
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           TextButton(
             child: Text(_streamingBegun ? 'Stop Stream' : 'Start Stream'),
             onPressed: _streamingBegun ? _stopStream : _startStream,
@@ -100,16 +100,16 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<String> saveImageFile(imageBytes, count) async {
     await Directory(hardcodedPath).create(recursive: true);
-    final String filePath = '${hardcodedPath}/${count}.png';
+    final String filePath = '$hardcodedPath/$count.png';
 
     // if a capture is already pending, do nothing
     if (_controller.value.isTakingPicture) return '';
 
     try {
-      File file = new File(filePath);
+      File file = File(filePath);
       file.writeAsBytes(imageBytes);
       return filePath;
-    } on CameraException catch (e) {
+    } on CameraException {
       return '';
     }
   }
@@ -125,12 +125,11 @@ class _CameraScreenState extends State<CameraScreen> {
         print('we ended up in here');
       }
 
-      imglib.PngEncoder pngEncoder = new imglib.PngEncoder();
+      imglib.PngEncoder pngEncoder = imglib.PngEncoder();
 
       // Convert to png
-      List<int> png = pngEncoder.encodeImage(img);
+      List<int> png = pngEncoder.encode(img);
       return png;
-    
     } catch (e) {
       print(">>>>>>>>>>>> ERROR:" + e.toString());
       return [];
@@ -141,17 +140,18 @@ class _CameraScreenState extends State<CameraScreen> {
   // Color
   imglib.Image _convertBGRA8888(CameraImage image) {
     return imglib.Image.fromBytes(
-      image.width,
-      image.height,
-      image.planes[0].bytes,
-      format: imglib.Format.bgra,
+      width: image.width,
+      height: image.height,
+      bytes: image.planes[0].bytes.buffer,
+      // format: imglib.Format.bgra,
     );
   }
 
   // CameraImage YUV420_888 -> PNG -> Image (compresion:0, filter: none)
   // Black
   imglib.Image _convertYUV420(CameraImage image) {
-    var img = imglib.Image(image.width, image.height); // Create Image buffer
+    var img = imglib.Image(
+        width: image.width, height: image.height); // Create Image buffer
 
     Plane plane = image.planes[0];
     const int shift = (0xFF << 24);
@@ -165,9 +165,12 @@ class _CameraScreenState extends State<CameraScreen> {
         // color: 0x FF  FF  FF  FF
         //           A   B   G   R
         // Calculate pixel color
-        var newVal = shift | (pixelColor << 16) | (pixelColor << 8) | pixelColor;
+        var newVal =
+            shift | (pixelColor << 16) | (pixelColor << 8) | pixelColor;
 
-        img.data[planeOffset + x] = newVal;
+        if (img.data != null) {
+          img.data!.toUint8List()[planeOffset + x] = newVal;
+        }
       }
     }
 
@@ -175,15 +178,13 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _startStream() async {
-    
     // for having unique file names
     var count = 0;
-    
+
     // start streaming images
     _controller.startImageStream((CameraImage image) async {
-
       List<int> imageBytes = await convertImagetoPng(image);
-      
+
       // call save image file method
       saveImageFile(imageBytes, count).then((res) async {
         final pathToPass = _streamingBegun ? tracker_path : '';
@@ -197,10 +198,7 @@ class _CameraScreenState extends State<CameraScreen> {
           });
         });
       });
-
-    }).catchError((err) => {
-      print("error on save image file error: $err")
-    });
+    }).catchError((err) => {print("error on save image file error: $err")});
 
     count += 1;
 

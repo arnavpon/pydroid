@@ -1,7 +1,7 @@
 [
 {
-  "directory": "/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/android/app/.cxx/cmake/debug/x86",
-  "command": "/Users/samuelhmorton/Library/Android/sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=i686-none-linux-android21 --gcc-toolchain=/Users/samuelhmorton/Library/Android/sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/darwin-x86_64 --sysroot=/Users/samuelhmorton/Library/Android/sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DconvertImage_EXPORTS  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O0 -fno-limit-debug-info  -fPIC   -o CMakeFiles/convertImage.dir/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/ios/Classes/converter.c.o   -c /Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/ios/Classes/converter.c",
-  "file": "/Users/samuelhmorton/indiv_projects/school/masters/pydroid/example/ios/Classes/converter.c"
+  "directory": "/Users/arnavpon/Documents/pydroid/example/android/app/.cxx/cmake/debug/x86",
+  "command": "/Users/arnavpon/Library/Android/sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=i686-none-linux-android21 --gcc-toolchain=/Users/arnavpon/Library/Android/sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/darwin-x86_64 --sysroot=/Users/arnavpon/Library/Android/sdk/ndk/21.1.6352462/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DconvertImage_EXPORTS  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O0 -fno-limit-debug-info  -fPIC   -o CMakeFiles/convertImage.dir/Users/arnavpon/Documents/pydroid/example/ios/Classes/converter.c.o   -c /Users/arnavpon/Documents/pydroid/example/ios/Classes/converter.c",
+  "file": "/Users/arnavpon/Documents/pydroid/example/ios/Classes/converter.c"
 }
 ]
